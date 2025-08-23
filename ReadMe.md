@@ -23,7 +23,7 @@ Follow the instructions at the end of the homebrew install to add brew to your P
 
 ## To Build
 ### Acquire Libraries:
-* Clone this the repo to your Max Packages folder or a folder that is attached to the Max Packages folder by symbolic link.  Make sure you clone recursively so that all submodules are properly initiated.  Use your Compiler's clone commend or `git clone https://github.com/jkaplan55/ISOr3.git --recursive ISOr3`
+* Clone this the repo to your Max Packages folder or a folder that is attached to the Max Packages folder by symbolic link.  Make sure you clone recursively so that all submodules are properly initiated.  Use your Compiler's clone command or in the terminal, from the Packages folder use `git clone https://github.com/jkaplan55/ISOr3.git --recursive ISOr3`
 * Download additional libraries appropriate to your platform from [Google Drive](https://drive.google.com/drive/folders/1IaKlRyWFBS9coNOtA-0CmdqwK-d28z0e?usp=sharing) and extract into the folder where you cloned the repo.
 * On Windows: Copy both .dll's in the "shared libs" into your max folder (where max.exe lives).  The release .dll must also be included with any standalones that use the externals.
 * In the Terminal or Console app of your choice, change directories (cd) into the folder you cloned the repo, then Download additional submodules: `git submodule update --init --recursive`
