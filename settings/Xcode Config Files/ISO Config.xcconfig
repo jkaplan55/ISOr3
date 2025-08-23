@@ -1,0 +1,33 @@
+//
+//  Config.xcconfig
+//  ISOr2
+//
+//  Created by Joe on 5/19/22.
+//
+
+//:configuration = Release
+LD_RUNPATH_SEARCH_PATHS = "$(SRCROOT)/includes/Mac/nakama-sdk/lib"
+HEADER_SEARCH_PATHS =  "$(SRCROOT)/includes/Mac/nakama-sdk/include"
+ARCHS = arm64
+
+//:configuration = RelWithDebInfo
+LD_RUNPATH_SEARCH_PATHS = "$(SRCROOT)/includes/Mac/nakama-sdk/lib"
+HEADER_SEARCH_PATHS = "$(SRCROOT)/includes/Mac/nakama-sdk/include"
+ARCHS = arm64
+
+//:configuration = Debug
+LD_RUNPATH_SEARCH_PATHS = "$(SRCROOT)/includes/Mac/nakama-sdk/lib"
+HEADER_SEARCH_PATHS = "$(SRCROOT)/includes/Mac/nakama-sdk/include"
+ARCHS = arm64
+
+//:configuration = MinSizeRel
+LD_RUNPATH_SEARCH_PATHS = "$(SRCROOT)/includes/Mac/nakama-sdk/lib"
+HEADER_SEARCH_PATHS =  "$(SRCROOT)/includes/Mac/nakama-sdk/include"
+ARCHS = arm64
+
+//:completeSettings = some
+//=LD_RUNPATH_SEARCH_PATHS
+//=HEADER_SEARCH_PATHS
+
+
+

@@ -1,0 +1,14 @@
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/CMakeFiles/RUN_TESTS.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/CMakeFiles/ALL_BUILD.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/min-lib/CMakeFiles/LIB.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/min-lib/CMakeFiles/RUN_TESTS.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/min-lib/CMakeFiles/ALL_BUILD.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.authentication/CMakeFiles/RUN_TESTS.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.authentication/CMakeFiles/ISOr2.authentication.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.authentication/CMakeFiles/ALL_BUILD.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.matchdata/CMakeFiles/ISOr2.matchdata.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.matchdata/CMakeFiles/RUN_TESTS.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.matchdata/CMakeFiles/ALL_BUILD.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.matchmaking/CMakeFiles/RUN_TESTS.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.matchmaking/CMakeFiles/ISOr2.matchmaking.dir
+C:/Users/Joe/Documents/Max 8/Packages/ISOr2/source/projects/ISOr2.matchmaking/CMakeFiles/ALL_BUILD.dir

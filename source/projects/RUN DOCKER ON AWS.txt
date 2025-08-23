@@ -1,0 +1,8 @@
+ssh -i G:\MaxMSP\Max8\Projects\InteractiveScoresOnlineRelease2\other\ISOr2KeyPair.pem ec2-user@54.245.57.3
+ISOtest
+scp -r -i G:\MaxMSP\Max8\Projects\InteractiveScoresOnlineRelease2\other\ISOr2KeyPair.pem G:\Docker\ISOTest ec2-user@54.245.57.3:/home/ec2-user
+docker-compose up
+(Correct the path in the YML file  /home/ec2-user)
+
+docker-compose up -d   (-d to make it persistent)
+docker-compose stop (stop to kill it)
