@@ -74,18 +74,18 @@ If you changed the names of the source files then the code for the Max SDK Objec
   
 ## Creating a new Repo
 If creating a new repo from scratch remember the following:
-`package-info.json.in` is required for Min to build.
-`git init`
-Be sure to add the submodules to your repo even though they are included in .gitsubmodules.
-`git submodule add https://github.com/Cycling74/min-lib.git source/min-lib`
-`git submodule add https://github.com/Cycling74/min-api.git source/min-api`
-`git submodule update --init --recursive`
-`git add --all`
-`git commit -m "First Commit`
-`git remote add origin [GithubRepoOrigin]`
-`git push -u origin main`
+* `package-info.json.in` is required for Min to build.
+* `git init`
+* Be sure to add the submodules to your repo even though they are included in .gitsubmodules.
+* `git submodule add https://github.com/Cycling74/min-lib.git source/min-lib`
+* `git submodule add https://github.com/Cycling74/min-api.git source/min-api`
+* `git submodule update --init --recursive`
+* `git add --all`
+* `git commit -m "First Commit`
+*  Make sure the solution builds
+* `git remote add origin [GithubRepoOrigin]`
+* `git push -u origin main`
 
-The then the solution should build.
 
 
 
