@@ -50,9 +50,9 @@ TODO:  Document additional config steps for json.hpp and the cpr library.
 #### Visual Studio
 View->Other Windows->Property Manager
 For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
-  * Add 'ISO Project Debugx64' in `../project settings` to `Debug | x64` and `RelWithDebInfo |x64` configurations
-  * Add 'ISO Project Releasex64' in `../project settings` to `Release|x64` and `MinSizeRel|x64` configurations
-  * For all configurations: edit Properties->Linker->Input->edit Additional Dependencies->check "Inherit from parent or project defaults"-> OK-> Apply
+  * Select `Debug | x64` and `RelWithDebInfo | x64` configurations.  Right click and choose "Add Existing Property Sheet".  Navigate to `../project settings`  and select `ISO Project Debugx64`.
+  * Select `Release | x64` and `MinSizeRel | x64` configurations.  Right click and choose "Add Existing Property Sheet".  Navigate to `../project settings`  and select `ISO Project Releasex64`.
+  * Select all configurations: Right click and choose Properties. Then Linker->Input-> Additional Dependencies-> edit ->check "Inherit from parent or project defaults"-> OK-> Apply
  
  
  OR
@@ -64,7 +64,10 @@ For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
 add names of all files in  "..\thirdparty\nakama\Windows\nakama-cpp-sdk\libs\win64\v142\" as appropriate to configuration.  Add the release files to release config, debug files to debug config.
   * Edit Linker->Input-> Additiona Dependencies: check "Inherit from parent or project defaults"
 
-
+Setup Debugging
+   * Select all configurations: right click and choose properties.  Configuration Properties->Debugging->Command.  Enter the full path for Max.exe or a particular patcher you want to test with.
+   * In Solution Explorer, Right click on the object you are testing and select "Set as Startup Project."
+   * Now Max will launch when you run your program and you will get debug info from the selected starup project.
 ### Build
 * Select ALL BUILD and build.
 * The Max externals will be found in `..\externals`
