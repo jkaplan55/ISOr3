@@ -82,6 +82,8 @@ Be sure to add the submodules to your repo even though they are included in .git
 `git submodule update --init --recursive`
 `git add --all`
 `git commit -m "First Commit`
+`git remote add origin [GithubRepoOrigin]`
+`git push -u origin main`
 
 The then the solution should build.
 
