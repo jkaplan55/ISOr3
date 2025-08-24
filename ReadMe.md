@@ -39,13 +39,12 @@ Build Project Files:
 #### Xcode
 For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):  
 * Build Settings -> Architectures:  remove `x86_64` 
-* Build Settings -> Header Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/include`
+* Build Settings -> Header Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/include`, `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
 * Build Settings -> Runpath Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/lib`
 * Build Settings -> Library Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/lib`
 * General -> Frameworks and Libraries: add `libnakama-sdk.dylib` from `../includes/Mac/nakama-sdk/lib`
 
 (An xcconfig file can be found int he settings folder off the root.  But it does work correclty in the current version)
-TODO:  Document additional config steps for json.hpp and the cpr library.
 
 #### Visual Studio
 View->Other Windows->Property Manager
@@ -58,7 +57,7 @@ For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
  OR
  
  Configure Properites directly for each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
-  * C++ -> General -> Additional Include Directories: add `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`
+  * C++ -> General -> Additional Include Directories: add `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
   * Linker -> General -> add paths:  `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\shared-libs\win64\v142\Debug` and `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\libs\win64\v142\Debug`
   * Edit Linker-Input-Additional Dependencies:
 add names of all files in  "..\thirdparty\nakama\Windows\nakama-cpp-sdk\libs\win64\v142\" as appropriate to configuration.  Add the release files to release config, debug files to debug config.
