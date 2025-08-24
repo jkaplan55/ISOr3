@@ -85,7 +85,7 @@ If creating a new repo from scratch remember the following:
 * `git submodule update --init --recursive`
 * `git add --all`
 * `git commit -m "First Commit`
-*  Test to make sure the solution builds
+*  Test to make sure the solution builds.  It will not build if a commit doesn't exist.
 * `git remote add origin [GithubRepoOrigin]`
 * `git push -u origin main`
 
