@@ -5,7 +5,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\includes\windows\nakama-cpp-sdk\include;$(SolutionDir)..\includes\cpr\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\includes\windows\nakama-cpp-sdk\include;$(SolutionDir)..\includes\cpr\include;$(SolutionDir)..\includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
 	</ClCompile>
     <Link>

@@ -76,7 +76,7 @@ private:
     std::mutex cv_m;
     std::thread blinkCursor;
     void toggleCursor() {
-        while ((usernameBoxActive || passwordBoxActive)) {
+        while ((activeTextBoxPtr)) {
             showCursor = !showCursor;
             redraw();
             std::unique_lock<std::mutex> lk(cv_m);
@@ -84,7 +84,18 @@ private:
             //Sleep(500);
         }
     }
-              
+
+    void stopCursorThread() {
+        showCursor = false;
+
+        if (blinkCursor.joinable()) {
+            {
+                std::unique_lock <std::mutex> lk(cv_m);  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
+                cv.notify_one();  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
+            }
+            blinkCursor.join();
+        }
+    }
     //A Struct to Define the TextBox.  This could be a class, and then the cursor could be a member function, but it gets complicated passing functions and values from an enclosing class to a subclass.
     struct textBox {
         int x;  //the x coordinate of the bottom left of the first character
@@ -95,26 +106,47 @@ private:
     };
 
     //Declare the TextBoxes
-    textBox usernameBox{ 50, 50, "", 0, "ACCOUNT NAME" };
-    textBox passwordBox{ 100, 100, "", 1, "PASSWORD" };
+    textBox usernameBox{ 0, 0, "", 0, "ACCOUNT NAME" };  //x and y are set at paint time.
+    textBox passwordBox{ 0, 0, "", 1, "PASSWORD" };
+    textBox newUsernameBox{ 0, 0, "", 0, "ACCOUNT NAME" };
+    textBox newEmailBox{ 0, 0, "", 0, "EMAIL" };
+    textBox newPasswordBox{ 0, 0, "", 1, "PASSWORD" };
+     
 
-    //Bools to detect activate TextBoxes
-    bool usernameBoxActive{ false };
-    bool passwordBoxActive{ false };
+    //Points to mange the Active TextBox.
+    std::vector<textBox*> signInTextBoxPtrs = { &usernameBox, &passwordBox };
+    std::vector<textBox*> newAccountTextBoxPtrs = { &newUsernameBox, &newEmailBox, &newPasswordBox };
+
+    textBox* activeTextBoxPtr;
+
+    textBox* getNextTextBox(textBox* currentTextBox, vector<textBox*> textBoxes) {     
+        // Find the element in the std::array
+        auto vectorElementPtr = std::find(textBoxes.begin(), textBoxes.end(), currentTextBox);
+        int textBoxIndex = std::distance(textBoxes.begin(), vectorElementPtr);
+        
+        if (textBoxIndex == textBoxes.size() - 1) {  //If you're at the end go back to the beginning
+            return textBoxes[0];
+        }
+        else {   //return the next one
+            return textBoxes[textBoxIndex + 1];
+        }            
+   }
 
     //DECLARATIONS FOR MANAGING STATE
-   
-    //Bool for RemembermeCheck
-    bool rememberMeCheck{ false };
 
-    //Bool for Connected
-    enum class connectionState {
+    //Bool for Checkboxes
+    bool rememberMeCheck{ false };
+    bool newAccountCheck{ false };
+
+    //Enum for objectState
+    enum class objectState {
         disconnected,
         connecting,
-        connected
+        connected,
+        newAccount
     };
 
-    connectionState connectionStateVar = connectionState::disconnected;
+    objectState objectStateVar = objectState::disconnected;
 
     string errorMessage;
 
@@ -148,13 +180,13 @@ private:
 
     //Define and Declare User Data Struct
     string refreshToken = "";
-      
+
     //Jsonify and DeJSONify DataScruct
     string jsonifyUserData() {
         nlohmann::json j = nlohmann::json{ {"userName", usernameBox.text}, {"refreshToken", "placeHolderRefreshToken"}, {"rememberMe", rememberMeCheck} };
         return j.dump();
     }
-    
+
     void deJsonifyUserData(string dataString) {
         nlohmann::json j = nlohmann::json::parse(dataString);
         j.at("userName").get_to(usernameBox.text);
@@ -171,22 +203,22 @@ private:
 
         if (file.is_open()) {
             std::stringstream buffer;
-            buffer << file.rdbuf();        
+            buffer << file.rdbuf();
             file.close();
             string fileString = encrypt_decrypt(buffer.str(), *"Q");
             //cout << fileString.substr(56, fileString.length() - 181) << endl;
             deJsonifyUserData(fileString.substr(56, fileString.length() - 181));
         }
 
-      
+
         //else {
         //    cout << "Error reading userData file" << endl;
        // }
 
-       
-      return;
+
+        return;
     }
-        
+
     void writeFile() {
         //string fileString = jsonifyUserData();       
         std::ofstream file;
@@ -218,16 +250,15 @@ public:
     login(const atoms& args = {})
         : custom_ui_operator::custom_ui_operator{ this, args } {
 
-         readDataFile();
+        readDataFile();
 
-         cout << "username = " << usernameBox.text << endl;
-         cout << "refreshToken = " << refreshToken << endl;
-         cout << "rememberMe = " << rememberMeCheck << endl;
+        cout << "username = " << usernameBox.text << endl;
+        cout << "refreshToken = " << refreshToken << endl;
+        cout << "rememberMe = " << rememberMeCheck << endl;
     }
 
     ~login() {
-        usernameBoxActive = false;
-        passwordBoxActive = false;
+        activeTextBoxPtr = NULL;
         if (blinkCursor.joinable()) {
             {
                 std::unique_lock <std::mutex> lk(cv_m);  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
@@ -236,7 +267,7 @@ public:
             blinkCursor.join();
         }
 
-        if (rememberMeCheck) { writeFile(); }  
+        if (rememberMeCheck) { writeFile(); }
     }
 
     // An attribute named "value" is treated as a special property of an object.
@@ -247,11 +278,7 @@ public:
 
     attribute<symbol> m_value{ this, "value", "" };
 
-
-
-
-
-    //savestate message doesn't work with UI objects.  So we will store RememberMe details as values for pattr.
+   //savestate message doesn't work with UI objects.  So we will store RememberMe details as values for pattr.
 
     attribute<number>  m_fontsize{ this, "fontsize", 14.0 };
     attribute<symbol>  m_fontname{ this, "fontname", "lato-light" };
@@ -265,61 +292,87 @@ public:
             auto    y { e.y() };
 
 
-           
-            //If you clicked in the userName box. Box ranges are determined programatically
-            if (x >= usernameBox.x && x <= (usernameBox.x + *fontwidth) && y >= (usernameBox.y - *fontheight) && y <= (usernameBox.y) && connectionStateVar == connectionState::disconnected) {
-                cout << "YOU CLICKED IN THE LOGIN BOX!" << endl;
-                usernameBoxActive = true;
-                if (passwordBoxActive == true) { passwordBoxActive = false; }
 
-                if (!blinkCursor.joinable()) { blinkCursor = std::thread(&Test_MaxUiObject::toggleCursor, this); }
-            }
             
-            //If you clicked in the password box.  Box ranges are determined programatically
-            else if (x >= passwordBox.x && x <= (passwordBox.x + *fontwidth) && y >= (passwordBox.y - *fontheight) && y <= (passwordBox.y) && connectionStateVar == connectionState::disconnected) {
-                cout << "YOU CLICKED IN THE PASSWORD BOX!" << endl;
-                passwordBoxActive = true;
-                if (usernameBoxActive == true) { usernameBoxActive = false; }
+            if (objectStateVar == objectState::disconnected) {
+               
+                //If you clicked in the userName box. Box ranges are determined programatically in the Paint Function based on the paint context
+                if (x >= usernameBox.x && x <= (usernameBox.x + *fontwidth) && y >= (usernameBox.y - *fontheight) && y <= (usernameBox.y)) {
+                    cout << "YOU CLICKED IN THE LOGIN BOX!" << endl;
 
-                if (!blinkCursor.joinable()) { blinkCursor = std::thread(&Test_MaxUiObject::toggleCursor, this); }
-            }
-            
-            //If you clicked outside either box, ensure both boxes are deactivated.
-            else {
-                    if (usernameBoxActive == true || passwordBoxActive == true)
-                    {
-                    showCursor = false;
-                    usernameBoxActive = false;
-                    passwordBoxActive = false;
-                    if (blinkCursor.joinable()) {
-                        {
-                            std::unique_lock <std::mutex> lk(cv_m);  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
-                            cv.notify_one();  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
-                        }
-                        blinkCursor.join();
-                    }
-                    }
+                    activeTextBoxPtr = &usernameBox;
+                    if (!blinkCursor.joinable()) { blinkCursor = std::thread(&login::toggleCursor, this); }
                 }
 
-            //If you clicked inside the RememberMeBox
-            if (x >= (usernameBox.x - 3) && x <= (usernameBox.x - 3 + 15) && y >= 235 && y <= (235 + 15) && connectionStateVar == connectionState::disconnected) {
+                //If you clicked in the password box.  Box ranges are determined programatically
+                else if (x >= passwordBox.x && x <= (passwordBox.x + *fontwidth) && y >= (passwordBox.y - *fontheight) && y <= (passwordBox.y)) {
+                    cout << "YOU CLICKED IN THE PASSWORD BOX!" << endl;
+                    
+                    activeTextBoxPtr = &passwordBox;
+                    if (!blinkCursor.joinable()) { blinkCursor = std::thread(&login::toggleCursor, this); }
+                }     
+
+                //If you clicked inside the RememberMeBox
+                else if (x >= (usernameBox.x - 3) && x <= (usernameBox.x - 3 + 15) && y >= 235 && y <= (235 + 15)) {
                     rememberMeCheck = !rememberMeCheck;
                 }
+               
 
-            //If you clicked inside the ConnectBox.  Connectbox range is hard coded
-            //position{ 158 , 275 },
-            //size{ 150.0, 50.0 },
-            if (x >= 158 && x <= (158 + 150) && y >= 275 && y <= 275 + 50 && connectionStateVar == connectionState::disconnected) {
+            }
+            else if (objectStateVar == objectState::newAccount) {              
+                if (x >= newUsernameBox.x && x <= (newUsernameBox.x + *fontwidth) && y >= (newUsernameBox.y - *fontheight) && y <= (newUsernameBox.y)) {
+                    
+                    activeTextBoxPtr = &newUsernameBox;
+                    if (!blinkCursor.joinable()) { blinkCursor = std::thread(&login::toggleCursor, this); }
+                }
+                else if (x >= newEmailBox.x && x <= (newEmailBox.x + *fontwidth) && y >= (newEmailBox.y - *fontheight) && y <= (newEmailBox.y)) {
+                    
+
+                    activeTextBoxPtr = &newEmailBox;
+                    if (!blinkCursor.joinable()) { blinkCursor = std::thread(&login::toggleCursor, this); }
+                }
+                else if (x >= newPasswordBox.x && x <= (newPasswordBox.x + *fontwidth) && y >= (newPasswordBox.y - *fontheight) && y <= (newPasswordBox.y)) {
+                    
+                    activeTextBoxPtr = &newPasswordBox;
+                    if (!blinkCursor.joinable()) { blinkCursor = std::thread(&login::toggleCursor, this); }
+                }
+                //If you clicked inside the RememberMeBox
+                else if (x >= (usernameBox.x - 3) && x <= (usernameBox.x - 3 + 15) && y >= 250 && y <= (250 + 15)) {
+                    rememberMeCheck = !rememberMeCheck;
+                }
+            }
+
+            //If you clicked outside either box, ensure both boxes are deactivated.
+            else {
+                    activeTextBoxPtr = NULL;
+                    stopCursorThread();                                    
+                }
+
+            
+           
+
+            //If you clicked inside the NextAccountBox
+            if (x >= (8) && x <= (8 + 15) && y >= t.height() - 22 && y <= (t.height() - 22 + 15) && (objectStateVar == objectState::newAccount || objectStateVar == objectState::disconnected)) {
+                newAccountCheck = !newAccountCheck;
+                if (newAccountCheck) { objectStateVar = objectState::newAccount; }
+                else { objectStateVar = objectState::disconnected; }
+
+                activeTextBoxPtr = NULL;
+                stopCursorThread();
+            }
+            //If you clicked inside the ConnectBox.  Connectbox range is hard coded //position{ 158 , 275 }, //size{ 150.0, 50.0 }                      
+           
+            if (x >= 158 && x <= (158 + 150) && y >= 275 && y <= 275 + 50 && (objectStateVar == objectState::newAccount || objectStateVar == objectState::disconnected)) {
                 cout << "you clicked the Connect box" << endl;
-                connectionStateVar = connectionState::connected;
+                activeTextBoxPtr = NULL;
+                stopCursorThread();
+
+                objectStateVar = objectState::connected;
+                newAccountCheck = 0;
                 if (rememberMeCheck) { writeFile(); };
                 errorMessage = ""; //clear the errorMessage when connecting.
             }
-            
 
-
-            cout << "usernameBoxActive = " << usernameBoxActive << endl;
-            cout << "passwordBoxActive = " << passwordBoxActive << endl;
             redraw();
             return {};
         }
@@ -336,36 +389,32 @@ public:
     message<> focuslost{ this, "focuslost",
      MIN_FUNCTION {
          cout << "focuslost" << endl;
-
-    //deactivate both boxes
-    usernameBoxActive = false;
-    passwordBoxActive = false;
+        
+        //celar active textBox.
+        activeTextBoxPtr = NULL;
+    
     return {};
 }
     };
 
     message<> key{ this, "key", MIN_FUNCTION {
         char character = int(args[4]);
-        if (usernameBoxActive == true) {
-            if (character == 8 && !usernameBox.text.empty()) { usernameBox.text.pop_back(); }  //popback on backspace
-            else if (character == 9) { // Switch active box on tab
-                usernameBoxActive = false;
-                passwordBoxActive = true;
-                cout << "tab!" << endl;
-            }
-            else {
-                usernameBox.text += int(args[4]);  //add the input to the strong                
-            }
+              
+        if (activeTextBoxPtr) {
+                if (character == 8 && !activeTextBoxPtr->text.empty()) { activeTextBoxPtr->text.pop_back(); } //popback on backspace
+                else if (character == 8 && activeTextBoxPtr->text.empty()) { }  //do nothing on backspace if box is already empty
+                else if (character == 9) { // Switch active box on tab //
+                    if (objectStateVar == objectState::newAccount) {
+                        activeTextBoxPtr = getNextTextBox(activeTextBoxPtr, newAccountTextBoxPtrs);
+                   }
+                    else {
+                        activeTextBoxPtr = getNextTextBox(activeTextBoxPtr, signInTextBoxPtrs);
+                    }
+                    cout << "tab!" << endl;
+                }                
+                else if (character >= 33 && character <= 126 && activeTextBoxPtr->text.length() < 32) { activeTextBoxPtr->text += character; }  //else if it is an allowed character then add it to the string  (see decimal values for allowed characters: https://web.alfredstate.edu/faculty/weimandn/miscellaneous/ascii/ascii_index.html)
         }
-        else if (passwordBoxActive == true) {
-            if (character == 8 && !passwordBox.text.empty()) { passwordBox.text.pop_back(); } //popback on backspace
-            else if (character == 9) { // Switch active box on tab //
-                usernameBoxActive = true;
-                passwordBoxActive = false;
-                cout << "tab!" << endl;
-            }
-            else { passwordBox.text += int(args[4]); }
-        }
+        cout << "key is " << int(args[4]) << endl;
         redraw();
         return {1};
 
@@ -375,13 +424,14 @@ public:
     message<> signout{ this, "signout",
      MIN_FUNCTION {
 
-        connectionStateVar = connectionState::disconnected;
+        if (objectStateVar == objectState::connected) { objectStateVar = objectState::disconnected; }
+        else { error("Cannot sign out if not connected"); }
         redraw();
         return {};
 }
     };
 
-    //Paint Functions
+    //PAINT FUNCTIONS
     double centerText(target t, string textToCenter, double fontsize) {
         c74::max::jgraphics_set_font_size(t, fontsize);
         c74::max::jgraphics_text_measure(t, textToCenter.c_str(), fontwidth, fontheight);
@@ -389,7 +439,8 @@ public:
         return (t.width() / 2) - (*fontwidth / 2);
     }
 
-    void paintTextRect(target t, textBox textBox, number m_fontsize, symbol m_fontname) {
+    //Paint textboxes that behave according to objectState.
+    void paintTextBox(target t, textBox textBox, number m_fontsize, symbol m_fontname) {
         std::string textstring = textBox.text;
 
         if (textBox.masked) {
@@ -398,10 +449,7 @@ public:
             textstring = maskedString;
         }
 
-
-        
-
-        if (connectionStateVar == connectionState::disconnected) {
+        if (objectStateVar == objectState::disconnected || objectStateVar == objectState::newAccount) {
             rect<stroke> {
                 t,
                     color{ {0.3, 0.3, 0.3, 1.0} },
@@ -420,8 +468,8 @@ public:
             };
         }
 
-        if (connectionStateVar == connectionState::connected) {
-            
+        if (objectStateVar == objectState::connected || objectStateVar == objectState::connecting) {
+
             rect<fill> {
                 t,
                     color{ {0.3, 0.3, 0.3, 1.0} },
@@ -431,7 +479,7 @@ public:
                     corner{ 15, 15 }
             };
 
-            if (textBox.masked == false) {
+            if (textBox.masked == false) {  //if text is masked don't paint it when box is unavailable
                 text{			// username display
                   t, color {color::predefined::white},
                   position {textBox.x, textBox.y},
@@ -455,7 +503,25 @@ public:
     }
 
     void paintRememberMeBox(target t, number m_fontsize) {
+    if (objectStateVar == objectState::newAccount) {
+        rect<> {  //a rect for the password
+            t,
+                color{ {0.3, 0.3, 0.3, 1.0} },
+                position{ (newUsernameBox.x - 3), 250 },
+                size{ 15, 15 },
+                line_width{ 3.0 }
+                // corner{ 15, 15 }
+        };
 
+        text{			// labelText
+                t, color {color::predefined::black},
+                position { newUsernameBox.x - 3 + 19 , 250 + 12},
+                fontface {m_fontname},
+                fontsize {m_fontsize},
+                content {"Remember me"}
+        };
+    }
+    else {
         rect<> {  //a rect for the password
             t,
                 color{ {0.3, 0.3, 0.3, 1.0} },
@@ -472,93 +538,155 @@ public:
                 fontsize {m_fontsize},
                 content {"Remember me"}
         };
+    }
 
     }
 
     void paintRememberMeCheck(target t) {
+        if (objectStateVar == objectState::newAccount) {
+            line<> {
+                t,
+                    color{ color::predefined::black },
+                    line_width{ 2.0 },
+                    origin{ usernameBox.x - 3 + 3, 250 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
+                    destination{ usernameBox.x - 3 + 7, 250 + 15 - 3 }
+            };
+            line<> {
+                t,
+                    color{ color::predefined::black },
+                    line_width{ 2.0 },
+                    origin{ usernameBox.x - 3 + 7, 250 + 15 - 3 },
+                    destination{ usernameBox.x - 3 + 15 - 3, 250 + 3 }
+            };
+        }
+        else {
+            line<> {
+                t,
+                    color{ color::predefined::black },
+                    line_width{ 2.0 },
+                    origin{ usernameBox.x - 3 + 3, 235 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
+                    destination{ usernameBox.x - 3 + 7, 235 + 15 - 3 }
+            };
+            line<> {
+                t,
+                    color{ color::predefined::black },
+                    line_width{ 2.0 },
+                    origin{ usernameBox.x - 3 + 7, 235 + 15 - 3 },
+                    destination{ usernameBox.x - 3 + 15 - 3, 235 + 3 }
+            };
+        }
+    }
+
+    void paintNewAccountBox(target t, number m_fontsize) {
+        int objectHeight = t.height();
+        rect<> {  //a rect for the password
+            t,
+                color{ {0.3, 0.3, 0.3, 1.0} },
+                position{ 8, objectHeight - 22},
+                size{ 15, 15 },
+                line_width{ 3.0 }
+                // corner{ 15, 15 }
+        };
+
+        text{			// labelText
+                t, color {color::predefined::black},
+                position { 8 + 19 , objectHeight - 22 + 12},
+                fontface {m_fontname},
+                fontsize {m_fontsize},
+                content {"New Account"}
+        };
+
+    }
+
+    void paintNewAccountBoxCheck(target t) {
+        int objectHeight = t.height();
+
         line<> {
             t,
                 color{ color::predefined::black },
                 line_width{ 2.0 },
-                origin{ usernameBox.x - 3 + 3, 235 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
-                destination{ usernameBox.x - 3 + 7, 235 + 15 - 3 }
+                origin{ 8 + 3, objectHeight - 22 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
+                destination{ 8 + 7, objectHeight - 22 + 15 - 3 }
         };
         line<> {
             t,
                 color{ color::predefined::black },
                 line_width{ 2.0 },
-                origin{ usernameBox.x - 3 + 7, 235 + 15 - 3 },
-                destination{ usernameBox.x - 3 + 15 - 3, 235 + 3 }
+                origin{ 8 + 7, objectHeight - 22 + 15 - 3 },
+                destination{ 8 + 15 - 3, objectHeight - 22 + 3 }
         };
     }
 
+    //Pain connectBoxes that behave according to objectState.
     void paintConnectButton(target t, number m_fontsize) {
-       if (connectionStateVar == connectionState::disconnected) {
-        
-        rect<fill> {  //a rect for the login
-            t,
-                color{ {0.3, 0.3, 0.3, 1.0} },
-                position{ 158 , 275 },
-                size{ 150.0, 50.0 },
-                line_width{ 3.0 },
-                corner{ 15, 15 }
-        };
+        if (objectStateVar == objectState::disconnected || objectStateVar == objectState::newAccount) {
 
-        int connectCenter = centerText(t, "Connect", m_fontsize);
-        text{			// ShowTitle
-                 t, color {color::predefined::black},
-                 position {connectCenter, 275 + 32},
-                 fontface {m_fontname},
-                 fontsize {m_fontsize},
-                 content {"Connect"}
-        };
-       }
+            rect<fill> {  //a rect for the login
+                t,
+                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    position{ 158 , 275 },
+                    size{ 150.0, 50.0 },
+                    line_width{ 3.0 },
+                    corner{ 15, 15 }
+            };
 
-       if (connectionStateVar == connectionState::connected) {
+            int connectCenter = centerText(t, "Connect", m_fontsize);
+            text{			// ShowTitle
+                     t, color {color::predefined::black},
+                     position {connectCenter, 275 + 32},
+                     fontface {m_fontname},
+                     fontsize {m_fontsize},
+                     content {"Connect"}
+            };
+        }
 
-           rect<stroke> {  //a rect for the login
-               t,
-                   color{ {0.3, 0.3, 0.3, 1.0} },
-                   position{ 158 , 275 },
-                   size{ 150.0, 50.0 },
-                   line_width{ 3.0 },
-                   corner{ 15, 15 }
-           };
+        if (objectStateVar == objectState::connected) {
 
-           int connectCenter = centerText(t, "Connected", m_fontsize);
-           text{			// ShowTitle
-                    t, color {color::predefined::black},
-                    position {connectCenter, 275 + 32},
-                    fontface {m_fontname},
-                    fontsize {m_fontsize},
-                    content {"Connected"}
-           };
+            rect<stroke> {  //a rect for the login
+                t,
+                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    position{ 158 , 275 },
+                    size{ 150.0, 50.0 },
+                    line_width{ 3.0 },
+                    corner{ 15, 15 }
+            };
 
-           if (connectionStateVar == connectionState::connecting) {
+            int connectCenter = centerText(t, "Connected", m_fontsize);
+            text{			// ShowTitle
+                     t, color {color::predefined::black},
+                     position {connectCenter, 275 + 32},
+                     fontface {m_fontname},
+                     fontsize {m_fontsize},
+                     content {"Connected"}
+            };
 
-               rect<stroke> {  //a rect for the login
-                   t,
-                       color{ {0.3, 0.3, 0.3, 1.0} },
-                       position{ 158 , 275 },
-                       size{ 150.0, 50.0 },
-                       line_width{ 3.0 },
-                       corner{ 15, 15 }
-               };
 
-               int connectCenter = centerText(t, "Connecting...", m_fontsize);
-               text{			// ShowTitle
-                        t, color {color::predefined::black},
-                        position {connectCenter, 275 + 32},
-                        fontface {m_fontname},
-                        fontsize {m_fontsize},
-                        content {"Connecting..."}
-               };
-           }
-       }
+        }
+
+        if (objectStateVar == objectState::connecting) {
+
+            rect<stroke> {  //a rect for the login
+                t,
+                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    position{ 158 , 275 },
+                    size{ 150.0, 50.0 },
+                    line_width{ 3.0 },
+                    corner{ 15, 15 }
+            };
+
+            int connectCenter = centerText(t, "Connecting...", m_fontsize);
+            text{			// ShowTitle
+                     t, color {color::predefined::black},
+                     position {connectCenter, 275 + 32},
+                     fontface {m_fontname},
+                     fontsize {m_fontsize},
+                     content {"Connecting..."}
+            };
+        }
     }
 
     void paintErrorMessage(target t, number m_fontsize) {
-        if (connectionStateVar == connectionState::disconnected) {
+        if (objectStateVar == objectState::disconnected) {
 
             int errorCenter = centerText(t, errorMessage, m_fontsize);
             text{			// ShowTitle
@@ -572,59 +700,29 @@ public:
     }
 
     void paintCursor(target t) {
-        if (usernameBoxActive) {
-            c74::max::jgraphics_text_measure(t, usernameBox.text.c_str(), fontwidth, fontheight);
-
-
+        if (activeTextBoxPtr) {
+            
+            if (activeTextBoxPtr->masked) { 
+                size_t length = activeTextBoxPtr->text.length();
+                std::string maskedString(length, '*');
+                c74::max::jgraphics_text_measure(t, maskedString.c_str(), fontwidth, fontheight); }
+            else { c74::max::jgraphics_text_measure(t, activeTextBoxPtr->text.c_str(), fontwidth, fontheight); }
             line<> {
                 t,
                     color{ color::predefined::black },
                     line_width{ 1.0 },
-                    origin{ number((usernameBox.x + *fontwidth + 1)), number(usernameBox.y + 2) },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
-                    destination{ number(usernameBox.x + *fontwidth + 1), number(usernameBox.y + 2 - *fontheight) }
+                    origin{ number((activeTextBoxPtr->x + *fontwidth + 1)), number(activeTextBoxPtr->y + 2) },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
+                    destination{ number(activeTextBoxPtr->x + *fontwidth + 1), number(activeTextBoxPtr->y + 2 - *fontheight) }
             };
         }
-        if (passwordBoxActive) {
-            size_t length = passwordBox.text.length();
-            std::string maskedString(length, '*');
-            c74::max::jgraphics_text_measure(t, maskedString.c_str(), fontwidth, fontheight);
-
-
-            line<> {
-                t,
-                    color{ color::predefined::black },
-                    line_width{ 1.0 },
-                    origin{ number((passwordBox.x + *fontwidth + 1)), number(passwordBox.y + 2) },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
-                    destination{ number(passwordBox.x + *fontwidth + 1), number(passwordBox.y + 2 - *fontheight) }
-            };
-        }
-    }
-
-    bool firstPaint{ true };  //Load m_value on first paint only
+    };
+        
+       
 
     message<> paint{ this, "paint",
         MIN_FUNCTION {
             target t        { args };
-
-            if (firstPaint) {
-
-                string mystring = usernameBox.text;
-                usernameBox.text = mystring;
-                firstPaint = false;
-            } //Load saved userName on first paint only
-
-            usernameBox.x = centerText(t, placeholderString, m_fontsize);
-            usernameBox.y = (t.height() / 2) - (*fontheight * .25) - 5 - 10;
-
-            passwordBox.x = centerText(t, placeholderString, m_fontsize);
-            passwordBox.y = (t.height() / 2) + *fontheight + 5 + (*fontheight * .25) + m_fontsize;
-
-            paintTextRect(t, usernameBox, m_fontsize, m_fontname);
-            paintTextRect(t, passwordBox, m_fontsize, m_fontname);
-
-            if ((usernameBoxActive || passwordBoxActive) && showCursor) { paintCursor(t); }
-
-
+            
             text{			// ShowTitle
                      t, color {color::predefined::black},
                      position {35, 85},
@@ -633,25 +731,58 @@ public:
                      content {"Interactive Scores Online"}
             };
 
+
+            //Place the TextBoxes
+            usernameBox.x = centerText(t, placeholderString, m_fontsize);
+            usernameBox.y = (t.height() / 2) - (*fontheight * .25) - 5 - 10;   //raised in increments relative to the vercial center.  (the fontheight behaves stragely, this formula is mostly trial and error.)
+
+            passwordBox.x = centerText(t, placeholderString, m_fontsize);
+            passwordBox.y = (t.height() / 2) + *fontheight + 5 + (*fontheight * .25) + m_fontsize;  //put the box in the vertical center
+
+            newUsernameBox.x = centerText(t, placeholderString, m_fontsize);
+            newUsernameBox.y = (t.height() / 2) + *fontheight + 5 + (*fontheight * .25) + m_fontsize + 15 - 50 - 50;    //adjusting in increments from the center according to trial and erryr.
+
+            newEmailBox.x = centerText(t, placeholderString, m_fontsize);
+            newEmailBox.y = (t.height() / 2) + *fontheight + 5 + (*fontheight * .25) + m_fontsize + 15 - 50;
+
+            newPasswordBox.x = centerText(t, placeholderString, m_fontsize);
+            newPasswordBox.y = (t.height() / 2) + *fontheight + 5 + (*fontheight * .25) + m_fontsize + 15;
+
+            //Paint Elements according to the Object State
+            if (objectStateVar == objectState::newAccount) {
+                paintTextBox(t, newUsernameBox, m_fontsize, m_fontname);
+                paintTextBox(t, newEmailBox, m_fontsize, m_fontname);
+                paintTextBox(t, newPasswordBox, m_fontsize, m_fontname);
+            } 
+            else {
+                paintTextBox(t, usernameBox, m_fontsize, m_fontname);
+                paintTextBox(t, passwordBox, m_fontsize, m_fontname);
+            }
+            
             paintRememberMeBox(t, m_fontsize);
             if (rememberMeCheck) { paintRememberMeCheck(t); }
             
+            if (activeTextBoxPtr && showCursor) { paintCursor(t); }
+
             paintConnectButton(t, 24);
 
             if (errorMessage != "") { paintErrorMessage(t, 16); }
-            
-            
-            //Reset width and height pointers
-            c74::max::jgraphics_text_measure(t, placeholderString.c_str(), fontwidth, fontheight);
+
+            paintNewAccountBox(t, m_fontsize);
+            if (newAccountCheck) { paintNewAccountBoxCheck(t); };
 
 
-            return {};
-        }
+
+//Reset width and height pointers
+c74::max::jgraphics_text_measure(t, placeholderString.c_str(), fontwidth, fontheight);
+
+
+return {};
+
+}
+
     };
 
-
-
 };
-
 
 MIN_EXTERNAL(login);
