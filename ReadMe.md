@@ -39,32 +39,34 @@ Build Project Files:
 #### Xcode
 For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):  
 * Build Settings -> Architectures:  remove `x86_64` 
-* Build Settings -> Header Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/include`
+* Build Settings -> Header Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/include`, `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
 * Build Settings -> Runpath Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/lib`
 * Build Settings -> Library Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/lib`
 * General -> Frameworks and Libraries: add `libnakama-sdk.dylib` from `../includes/Mac/nakama-sdk/lib`
 
 (An xcconfig file can be found int he settings folder off the root.  But it does work correclty in the current version)
-TODO:  Document additional config steps for json.hpp and the cpr library.
 
 #### Visual Studio
 View->Other Windows->Property Manager
 For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
-  * Add 'ISO Project Debugx64' in `../project settings` to `Debug | x64` and `RelWithDebInfo |x64` configurations
-  * Add 'ISO Project Releasex64' in `../project settings` to `Release|x64` and `MinSizeRel|x64` configurations
-  * For all configurations: edit Properties->Linker->Input->edit Additional Dependencies->check "Inherit from parent or project defaults"-> OK-> Apply
+  * Select `Debug | x64` and `RelWithDebInfo | x64` configurations.  Right click and choose "Add Existing Property Sheet".  Navigate to `../project settings`  and select `ISO Project Debugx64`.
+  * Select `Release | x64` and `MinSizeRel | x64` configurations.  Right click and choose "Add Existing Property Sheet".  Navigate to `../project settings`  and select `ISO Project Releasex64`.
+  * Select all configurations: Right click and choose Properties. Then Linker->Input-> Additional Dependencies-> edit ->check "Inherit from parent or project defaults"-> OK-> Apply
  
  
  OR
  
  Configure Properites directly for each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
-  * C++ -> General -> Additional Include Directories: add `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`
+  * C++ -> General -> Additional Include Directories: add `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
   * Linker -> General -> add paths:  `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\shared-libs\win64\v142\Debug` and `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\libs\win64\v142\Debug`
   * Edit Linker-Input-Additional Dependencies:
 add names of all files in  "..\thirdparty\nakama\Windows\nakama-cpp-sdk\libs\win64\v142\" as appropriate to configuration.  Add the release files to release config, debug files to debug config.
   * Edit Linker->Input-> Additiona Dependencies: check "Inherit from parent or project defaults"
 
-
+Setup Debugging
+   * Select all configurations: right click and choose properties.  Configuration Properties->Debugging->Command.  Enter the full path for Max.exe or a particular patcher you want to test with.
+   * In Solution Explorer, Right click on the object you are testing and select "Set as Startup Project."
+   * Now Max will launch when you run your program and you will get debug info from the selected starup project.
 ### Build
 * Select ALL BUILD and build.
 * The Max externals will be found in `..\externals`
@@ -82,7 +84,7 @@ If creating a new repo from scratch remember the following:
 * `git submodule update --init --recursive`
 * `git add --all`
 * `git commit -m "First Commit`
-*  Make sure the solution builds
+*  Test to make sure the solution builds.  It will not build if a commit doesn't exist.
 * `git remote add origin [GithubRepoOrigin]`
 * `git push -u origin main`
 
