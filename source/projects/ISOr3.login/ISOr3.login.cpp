@@ -18,6 +18,7 @@
 using namespace c74::min;
 using namespace c74::min::ui;
 
+//Using custom uiFlags to get the behaviour i want.
 const long uiflags = 0
 | JBOX_DRAWFIRSTIN    // 0
 // | JBOX_NODRAWBOX                        // 1
@@ -43,8 +44,6 @@ const long uiflags = 0
 
 
 
-
-
 class login : public object<login>, public custom_ui_operator<465, 365, uiflags> {
 private:
     bool	m_bang_on_change{ true };
@@ -54,7 +53,10 @@ private:
     bool	m_mouseover{};
     number  m_mouse_position[2]{};
     number	m_range_delta{ 1.0 };
-
+    number  m_fontsize = 14.0;
+    symbol  m_fontname = "lato-light";
+    
+    string errorMessage;
 
     //DECLARATIONS FOR THE TEXT BOXES
     //pointers to store dimensions of the fonts.  Which get updated with each redraw();
@@ -133,8 +135,7 @@ private:
    }
 
     //DECLARATIONS FOR MANAGING STATE
-
-    //Bool for Checkboxes
+     //Bool for Checkboxes
     bool rememberMeCheck{ false };
     bool newAccountCheck{ false };
 
@@ -148,10 +149,8 @@ private:
 
     objectState objectStateVar = objectState::disconnected;
 
-    string errorMessage;
-
-    //DECLARATIONS FOR DATA PERSISTENCE
-
+     //DECLARATIONS FOR DATA PERSISTENCE
+    //Generate Random String
     std::string gen_random(const int len) {
         static const char alphanum[] =
             "0123456789"
@@ -234,8 +233,6 @@ private:
         return;
     }
 
-
-
 public:
     MIN_DESCRIPTION{ "Display a text label" };
     MIN_TAGS{ "ui" }; // if multitouch tag is defined then multitouch is supported but mousedragdelta is not supported
@@ -244,8 +241,6 @@ public:
 
     inlet<>  input{ this, "(number) value to set" };
     outlet<> output{ this, "(number) value" };
-
-
 
     login(const atoms& args = {})
         : custom_ui_operator::custom_ui_operator{ this, args } {
@@ -270,19 +265,7 @@ public:
         if (rememberMeCheck) { writeFile(); }
     }
 
-    // An attribute named "value" is treated as a special property of an object.
-// This attribute will be seen by Max's preset, pattr, and parameter systems for saving and recalling object state.
-// In a standalone we will need to store pattr settings as a file.  So instead of using pattr, we'll just read and write our own file with the username and refresh token.
-    attribute<number>  m_default{ this, "defaultvalue", 0.0 };
-
-
-    attribute<symbol> m_value{ this, "value", "" };
-
-   //savestate message doesn't work with UI objects.  So we will store RememberMe details as values for pattr.
-
-    attribute<number>  m_fontsize{ this, "fontsize", 14.0 };
-    attribute<symbol>  m_fontname{ this, "fontname", "lato-light" };
-
+    attribute<number>  local{ this, "local", 0 };    
 
     message<> mousedown{ this, "mousedown",
         MIN_FUNCTION {
@@ -290,10 +273,7 @@ public:
             auto    t { e.target() };
             auto    x { e.x() };
             auto    y { e.y() };
-
-
-
-            
+           
             if (objectStateVar == objectState::disconnected) {
                
                 //If you clicked in the userName box. Box ranges are determined programatically in the Paint Function based on the paint context
@@ -617,7 +597,7 @@ public:
         };
     }
 
-    //Pain connectBoxes that behave according to objectState.
+    //Paint connectBoxes that behave according to objectState.
     void paintConnectButton(target t, number m_fontsize) {
         if (objectStateVar == objectState::disconnected || objectStateVar == objectState::newAccount) {
 
@@ -715,10 +695,8 @@ public:
                     destination{ number(activeTextBoxPtr->x + *fontwidth + 1), number(activeTextBoxPtr->y + 2 - *fontheight) }
             };
         }
-    };
-        
-       
-
+    };       
+      
     message<> paint{ this, "paint",
         MIN_FUNCTION {
             target t        { args };
