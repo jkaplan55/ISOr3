@@ -14,112 +14,24 @@ using namespace NAKAMA_NAMESPACE;
 
 class NakamaSessionManager
 {
-public:
-    bool& clientActiveRef = clientActive;
-    int latestpacket = 0;
-    bool ticking = false;
-    NMatchData matchdata;
-
-
 
 private:                //We protect matters related to the Session because we dont' want other functions interefering with them.
     NClientPtr _client;
     NSessionPtr _session;
     NRtClientPtr _rtClient;
     NRtDefaultClientListener _listener;
-    std::thread theTicker;
-    bool clientActive = false;
-    
-      
+    std::thread _theTicker;
+    bool _clientActive = false;
+
+ 
+    //std::string _serverKey = "defaultKey";
+    std::string _localHost = "127.0.0.1";
+    std::string _serverDomain = "54.245.57.30";  //EC2 - 54.245.57.3	  //Joe's IP 73.11.171.178 //LocalHost : 127.0.0.1
+
     //The litany of subfunctions
-    NClientPtr createClient() {
-        NClientParameters parameters;
-        parameters.host = "127.0.0.1";  //EC2 - 54.245.57.3	  //Joe's IP 73.11.171.178 //LocalHost : 127.0.0.1
-        return createDefaultClient(parameters);
-    }
-    void restoreSession() {     //TODO!
-        // to do: read session token from your storage
-      // string sessionToken;
-
-       ////if there is a Session token in storage, try to use it.
-       //if (!sessionToken.empty())
-       //{
-       //    // Lets check if we can restore a cached session.
-       //    auto session = restoreSession(sessionToken);
-
-       //    if (!session->isExpired())
-       //    {
-       //        // Session was valid and is restored now.
-       //        _session = session;
-       //        clientActive = true;
-       //        return;
-       //    }
-       //}
-    }
-    void authenticateClient(const std::string& deviceId, const std::string& userName, std::promise<bool>&& connectionComplete) {
-        
-        auto successCallback = [this, &userName, &connectionComplete](NSessionPtr session)
-        {
-            //Authenticate Device impelemnts a Callback That Returns a Session Pointer.
-            std::cout << session->getAuthToken() << std::endl;
-            std::cout << "GOT THE TOKEN!\n";
-            _session = session;
-            updateDisplayName(userName);
-            startRtClient(std::move(connectionComplete));
-           
-
-            //TODO: save session token in your storage
-
-        };
-        
-        auto errorCallback = [](const NError& error)
-        {
-            //per "peek definition" NError is a struct.  It contins a Message and a code.  You can print the error.message, or use the toString funct8ion that the API has defined.   
-            std::cout << "Something went wrong:" << error.message << std::endl;
-        };
-        _client->authenticateDevice(deviceId, opt::nullopt, opt::nullopt, {}, successCallback, errorCallback);
-       
-        std::cout << "Called authenticateDevice\n";
-
-        return;
-        
-    }
-    void startRtClient(std::promise<bool>&& connectionComplete) {
-        int port = 7350; // different port to the main API port
-        bool createStatus = true; // if the server should show the user as online to others.
-        
-        _rtClient = _client->createRtClient(port);
-        _rtClient->setListener(&_listener);
-        _listener.setConnectCallback([this, &connectionComplete]()  
-            {
-                std::cout << "Socket connected." << std::endl;
-                connectionComplete.set_value(true);    //SetthePromise that signifies the end of the "get connected" chain."
-
-                
-                
-            });
-
-        _rtClient->connect(_session, createStatus);
-        return;
-    };
-    void updateDisplayName(std::string displayName) {
-        auto successCallback = [] () {
-            std::cout << "Changed Display Name" << std::endl;
-        };
-        _client->updateAccount(_session,
-            opt::nullopt, 
-            displayName, 
-            opt::nullopt, 
-            opt::nullopt,
-            opt::nullopt, 
-            opt::nullopt,
-            successCallback
-        );
-    }
-    void TheTick() {
-        ticking = true;
+    void theTick() {
         std::cout << "ticking" << std::endl;
-        while (clientActive) {
+        while (_clientActive) {
             _client->tick();
             if (_rtClient) { //rtCLient is a pointer.  It will return false if no value is assigned.
                 _rtClient->tick();
@@ -127,41 +39,203 @@ private:                //We protect matters related to the Session because we d
             }
             //std::cout << "Tick\n";
             //std::cout << "Session Active = " << clientActive << "\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
-        ticking = false;
         std::cout << "stopped ticking" << std::endl;
     }
+    void stopTheTicker() {
+        _clientActive = false;
+        if (_theTicker.joinable()) {
+            _theTicker.join();
+        }
+    }
+    void startRtClient() {
+        //This implementation follows the pattern in the GitHub Docs.  https://github.com/heroiclabs/nakama-cpp  
+        //Other patterns may be possible depending on what we want to listen for.
+
+        int port = 7350; // different port to the main API port
+        bool createStatus = true; // if the server should show the user as online to others.
+
+        _rtClient = _client->createRtClient(port);
+        _rtClient->setListener(&_listener);
+        _listener.setConnectCallback([]()
+            {
+                std::cout << "Socket connected." << std::endl;
+            });
+
+        _rtClient->connect(_session, createStatus);
+        return;
+    };
     
+    void authenticateClientDeviceId(std::string deviceID, std::string userName, std::function<void()> onSuccess = nullptr, std::function<void (std::string)> onError = nullptr) {
+        
+        auto successCallback = [this, userName, onSuccess](NSessionPtr session)
+        {
+            //Authenticate Device impelemnts a Callback That Returns a Session Pointer.
+            std::cout << session->getAuthToken() << std::endl;
+            std::cout << "GOT THE TOKEN!\n";
+            _session = session;
+            updateDisplayName(userName);
+            startRtClient();
+            onSuccess();
+
+            //TODO: save session token in your storage
+
+        };
+        
+        auto errorCallback = [this, onError](const NError& error)
+        {
+            //per "peek definition" NError is a struct.  It contins a Message and a code.  You can print the error.message, or use the toString funct8ion that the API has defined.   
+            std::cout << "Something went wrong.  Code = " << int(error.code) << "   " << error.message << std::endl;
+            if (int(error.code) == -1) { onError("Unable to reach the server."); }
+            else { onError("Something went wrong."); }
+            //stopTheTicker();
+        };
+
+
+        _client->authenticateDevice(deviceID, opt::nullopt, opt::nullopt, {}, successCallback, errorCallback);
+       
+        return;
+        
+    }
+    void authenticateClientEmail(const std::string& email, const std::string& password, const std::string& userName, bool create, std::function<void(std::string)> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr) {
+
+        auto successCallback = [this, userName, onSuccess](NSessionPtr session)
+            {
+                //Authenticate Device impelements a Callback That Returns a Session Pointer.
+                std::cout << session->getAuthToken() << std::endl;
+                
+                std::cout << "GOT THE TOKEN!\n";
+                _session = session;
+                startRtClient();
+                onSuccess(session->getAuthToken());
+                //TODO: save session token in your storage
+
+            };
+
+        auto errorCallback = [this, onError](const NError& error)
+            {
+                //per "peek definition" NError is a struct.  It contins a Message and a code.  You can print the error.message, or use the toString funct8ion that the API has defined.   
+                
+                std::cout << "Something went wrong.  Code = " << int(error.code) << "   " << error.message << std::endl;
+                if (int(error.code) == -1) { onError("Unable to reach the server."); }
+                else if (int(error.code) == 4 || int(error.code) == 3 || int(error.code) == 2 || int(error.code) == 1) { onError(error.message.substr(9)); }
+                else { onError("Something went wrong."); }
+                //stopTheTicker();
+                
+            };
+
+        _client->authenticateEmail(email, password, userName, create, {}, successCallback, errorCallback);
+
+
+        return;
+    }
+
+
+    void updateDisplayName(std::string displayName) {
+        std::cout << "called updateDisplayName()" << std::endl;
+
+        auto successCallback = []() {
+            std::cout << "Changed Display Name" << std::endl;
+            };
+
+        auto errorCallback = [](const NError& error) { std::cout << "Failed to update Display Name" << std::endl; };
+
+        _client->updateAccount(_session,
+            opt::nullopt,
+            displayName,
+            opt::nullopt,
+            opt::nullopt,
+            opt::nullopt,
+            opt::nullopt,
+            successCallback,
+            errorCallback
+        );
+    }
+
 
     //The litany of public functions, called by Max Objects.
 public:
+    int latestpacket = 0;
+    NMatchData matchdata;
 
-    //I would love to be able to take a callback from the Max Object.  But passing callbacks from another class is proving difficult.  https://youtu.be/Bm2jmUxkUVw?t=931, https://blog.mbedded.ninja/programming/languages/c-plus-plus/callbacks/, https://stackoverflow.com/questions/10537131/how-to-pass-a-method-as-callback-to-another-class
-       //For now we will use promises and futures.  https://www.youtube.com/watch?v=XDZkyQVsbDY
+    ~NakamaSessionManager() {
+        stopTheTicker();
+    }
 
-    void start(const std::string& deviceId, const std::string& userName)
-    {
-        std::promise<bool> connectionStatusPromise;
-        std::future<bool> connectionStatusFuture = connectionStatusPromise.get_future();
-
+   
+   
 
 
+    // AUTH RELATED FUNCTIONS
+    #pragma region AuthFunctions
+    void initializeClient(bool local = 0) {
+        NClientParameters parameters;
+        //parameters.serverKey = _serverKey;
+        if (local) { parameters.host = _localHost; }
+        else { parameters.host = _serverDomain; }
+        _client = createDefaultClient(parameters);
+        _clientActive = true;
+        if (!(_theTicker.joinable())) { _theTicker = std::thread{ &NakamaSessionManager::theTick, this }; }  //This ensures the thread only starts on the first attempt to connect. I don't love this solution.  https://forum.heroiclabs.com/t/how-join-tick-thread-on-authentication-error-callback/6390
 
-        NLogger::initWithConsoleSink(NLogLevel::Debug);
-        _client = createClient();
-        clientActive = true;
-        theTicker = std::thread{ &NakamaSessionManager::TheTick, this };
-        authenticateClient(deviceId, userName, std::move(connectionStatusPromise));
-        connectionStatusFuture.get();
- 
-      
         return;
     }
     
-    void stopTicking() {
-        theTicker.join();
+    void signInDeviceId(const std::string& deviceId, const std::string& userName, bool local = 0, std::function<void()> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr)
+    {
+        initializeClient(local);
+         authenticateClientDeviceId(deviceId, userName, onSuccess, onError);        
+        return;
     }
+    void signInEmail(const std::string& email, const std::string& password, const std::string& userName, bool create,  bool local = 0, std::function<void(std::string)> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr)
+    {
+        initializeClient(local);
+        authenticateClientEmail(email, password, userName, create, onSuccess, onError);
+        return;
+    }
+
+    void restoreTheSession(std::string authToken) {
+        //if there is a Session token in storage, try to use it.
+        if (!authToken.empty())
+        {
+            // Lets check if we can restore a cached session.
+            initializeClient();
+            auto session = restoreSession(authToken);
+            _session = session;
+            std::cout << "auth token is " << _session->getAuthToken() << std::endl;
+            auto refreshSuccessCallback = [](NSessionPtr session)
+                {
+                    std::cout << "Session successfully refreshed" << std::endl;
+                };
+
+            auto refreshErrorCallback = [](const NError& error)
+                {
+                    
+                    std::cout << "refresh error " << error.message << std::endl;
+                        // Couldn't refresh the session so reauthenticate.
+                    // client->authenticateDevice(...)
+                };
+
+            // Refresh the existing session
+            _client->authenticateRefresh(session, refreshSuccessCallback, refreshErrorCallback);
+
+            // Refresh the existing session
+            std::cout << "is session created?" << session->isCreated() << std::endl;
+            std::cout << "is session expired?" << session->isExpired() << std::endl;
+            //if (!session->isExpired())
+           // {
+                // Session was valid and is restored now.
+           //     _session = session;
+           //     return;
+            //}
+        }
+    }
+
+    void signOut() {
+        stopTheTicker();        
+          
+    } //TODO
+    #pragma endregion
 
     NMatch createMatch() {
         setMatchDataCallback();
