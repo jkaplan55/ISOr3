@@ -53,10 +53,9 @@ private:                //We protect matters related to the Session because we d
         //This implementation follows the pattern in the GitHub Docs.  https://github.com/heroiclabs/nakama-cpp  
         //Other patterns may be possible depending on what we want to listen for.
 
-        int port = 7350; // different port to the main API port
         bool createStatus = true; // if the server should show the user as online to others.
 
-        _rtClient = _client->createRtClient(port);
+        _rtClient = _client->createRtClient();
         _rtClient->setListener(&_listener);
         _listener.setConnectCallback([]()
             {
@@ -200,7 +199,7 @@ public:
         {
             // Lets check if we can restore a cached session.
             initializeClient();
-            auto session = restoreSession(authToken);
+            auto session = restoreSession(authToken, "refreshToken");
             _session = session;
             std::cout << "auth token is " << _session->getAuthToken() << std::endl;
             auto refreshSuccessCallback = [](NSessionPtr session)
@@ -217,7 +216,7 @@ public:
                 };
 
             // Refresh the existing session
-            _client->authenticateRefresh(session, refreshSuccessCallback, refreshErrorCallback);
+            //_client->authenticateRefresh(session, refreshSuccessCallback, refreshErrorCallback);
 
             // Refresh the existing session
             std::cout << "is session created?" << session->isCreated() << std::endl;

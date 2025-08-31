@@ -2,15 +2,17 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup>
+    <_PropertySheetDisplayName>Nakama Project Debugx64</_PropertySheetDisplayName>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\includes\windows\nakama-cpp-sdk\include;$(SolutionDir)..\includes\cpr\include;$(SolutionDir)..\includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\includes\NakamaWindows\Release\include;$(SolutionDir)..\includes\cpr\include;$(SolutionDir)..\includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
-	</ClCompile>
+    </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\includes\windows\nakama-cpp-sdk\shared-libs\win64\v142\Release;$(SolutionDir)..\includes\windows\nakama-cpp-sdk\libs\win64\v142\Release;$(SolutionDir)..\includes\cpr\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>cpprest.lib;crypto.lib;libprotobuf.lib;nakama-cpp.lib;ssl.lib;cpr.lib;libcurl-d_imp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\includes\NakamaWindows\Release\lib;$(SolutionDir)..\includes\cpr\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>nakama-sdk.lib;cpr.lib;libcurl-d_imp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />
