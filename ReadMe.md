@@ -36,7 +36,7 @@ Build Project Files:
 * on Windows: `cmake -G "Visual Studio 17 2022" ..`
 
 ### Configure Project Files
-#### Xcode
+#### Xcode [TODO add Nakama Release 2.8.5 to includes package and document]
 For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):  
 * Build Settings -> Architectures:  remove `x86_64` 
 * Build Settings -> Header Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/include`, `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
@@ -57,10 +57,10 @@ For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
  OR
  
  Configure Properites directly for each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):
-  * C++ -> General -> Additional Include Directories: add `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
-  * Linker -> General -> add paths:  `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\shared-libs\win64\v142\Debug` and `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\libs\win64\v142\Debug`
+  * C++ -> General -> Additional Include Directories: add `$(SolutionDir)..\includes\NakamaWindows\[Debug or Release]\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
+  * Linker -> General -> add paths:  `$(SolutionDir)..\includes\NakamaWindows\[Debug or Release]\lib` and `$(SolutionDir)..\includes\cpr\lib`
   * Edit Linker-Input-Additional Dependencies:
-add names of all files in  "..\thirdparty\nakama\Windows\nakama-cpp-sdk\libs\win64\v142\" as appropriate to configuration.  Add the release files to release config, debug files to debug config.
+add `nakama-sdk.lib`, `cpr.lib`, and `libcurl-d_imp.lib`
   * Edit Linker->Input-> Additiona Dependencies: check "Inherit from parent or project defaults"
 
 Setup Debugging
