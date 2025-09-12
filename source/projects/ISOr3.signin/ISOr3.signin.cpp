@@ -194,10 +194,11 @@ private:
 
     //Define and Declare User Data Struct
     string authToken = "";
+    string refreshToken = "";
 
     //Jsonify and DeJSONify DataScruct
     string jsonifyUserData() {
-        nlohmann::json j = nlohmann::json{ {"userName", usernameBox.text}, {"authToken", authToken}, {"rememberMe", rememberMeCheck} };
+        nlohmann::json j = nlohmann::json{ {"userName", usernameBox.text}, {"authToken", authToken}, {"refreshToken", refreshToken}, {"rememberMe", rememberMeCheck} };
         return j.dump();
     }
 
@@ -205,6 +206,7 @@ private:
         nlohmann::json j = nlohmann::json::parse(dataString);
         j.at("userName").get_to(usernameBox.text);
         j.at("authToken").get_to(authToken);
+        j.at("refreshToken").get_to(refreshToken);
         j.at("rememberMe").get_to(rememberMeCheck);
 
         return;
@@ -219,31 +221,30 @@ private:
             std::stringstream buffer;
             buffer << file.rdbuf();
             file.close();
-            //string fileString = encrypt_decrypt(buffer.str(), *"Q");
-            //deJsonifyUserData(fileString.substr(56, fileString.length() - 181));
-            deJsonifyUserData(buffer.str());
+            string jsonString = buffer.str().substr(56, buffer.str().length() - 181);
+            cout << encrypt_decrypt(jsonString, *"d") << endl; //the Cypher was failing intermittently with "Q".  I suspect because it was shifting the letters into some character that was causing rdbuf() to end early. Going with a smaller shift.  I will remove this print once I'm confident it is safe.
+            deJsonifyUserData(encrypt_decrypt(jsonString, *"d"));
         }
 
 
-        //else {
-        //    cout << "Error reading userData file" << endl;
-       // }
+        else {
+            //cerr << "Error reading data file" << endl;
+        }
 
 
         return;
     }
 
     void writeFile() {
-        //string fileString = jsonifyUserData();       
         std::ofstream file;
         file.open("ISOdata.dat");
         if (file.is_open()) {
-            file << jsonifyUserData();
-            //file << gen_random(56) << encrypt_decrypt(jsonifyUserData(), *"Q") << gen_random(124) << std::endl;
+            //file << gen_random(56) << jsonifyUserData() << gen_random(124) << std::endl;
+            file << gen_random(56) << encrypt_decrypt(jsonifyUserData(), *"d") << gen_random(124) << std::endl;
             file.close();
         }
         else {
-            cout << "Error reading userData file" << endl;
+            //cout << "Error writing userData file" << endl;
         }
 
         return;
@@ -270,7 +271,7 @@ private:
                 waiting = false;
                 theSession->initializeClient(local);
                 if (rememberMeCheck) {
-                    theSession->restoreTheSession(authToken);
+                    authenticateWithRefresh(authToken, refreshToken);
                 }
             }
         }
@@ -278,6 +279,65 @@ private:
     }
     #pragma endregion
 
+    //FUNCTIONS FOR AUTHENTICATION
+    #pragma region AuthFunctions
+    void authenticateWithEmail() {
+        auto onSuccess = [this](std::string auth, std::string refresh) {
+            cout << "connected!" << endl;
+            if (objectStateVar == objectState::newAccountAttempt) { usernameBox.text = newUsernameBox.text; }
+            authToken = auth;
+            refreshToken = refresh;
+            writeFile();
+            objectStateVar = objectState::connected;
+            redraw();
+            };
+
+        auto onError = [this](std::string error) {
+            if (objectStateVar == objectState::newAccountAttempt && error == "Invalid credentials.") { error = "Email already in use."; }
+            errorMessage = error;
+            cout << error << endl;
+            cout << errorMessage << endl;
+            if (objectStateVar == objectState::newAccountAttempt) { objectStateVar = objectState::newAccount; }
+            else if (objectStateVar == objectState::connecting) { objectStateVar = objectState::disconnected; }
+
+            redraw();
+            };
+
+
+        if (objectStateVar == objectState::disconnected) {
+            theSession->authenticateClientEmail("", passwordBox.text, usernameBox.text, 0, onSuccess, onError);
+            objectStateVar = objectState::connecting;
+            redraw();
+        }
+        else if (objectStateVar == objectState::newAccount) {
+            theSession->authenticateClientEmail(newEmailBox.text, newPasswordBox.text, newUsernameBox.text, 1, onSuccess, onError);
+            objectStateVar = objectState::newAccountAttempt;
+            redraw();
+        }
+    }
+    void authenticateWithRefresh(std::string authT, std::string refreshT) {
+        auto onSuccess = [this](std::string auth, std::string refresh) {
+            cout << "connected!" << endl;
+            authToken = auth;
+            refreshToken = refresh;            
+            objectStateVar = objectState::connected;
+            writeFile();
+            redraw();
+            };
+
+        auto onError = [this](std::string error) {
+            errorMessage = error;
+            objectStateVar = objectState::disconnected;
+            redraw();
+            };
+
+
+        objectStateVar = objectState::connecting;
+
+        theSession->refreshTheSession(authT, refreshT, onSuccess, onError);
+
+    }
+    #pragma endregion
 public:
     MIN_DESCRIPTION{ "Display a text label" };
     MIN_TAGS{ "ui" }; // if multitouch tag is defined then multitouch is supported but mousedragdelta is not supported
@@ -287,19 +347,13 @@ public:
     inlet<>  input{ this, "(number) value to set" };
     outlet<> output{ this, "(number) value" };
 
-    attribute<number>  local{ this, "local", 0 };
+    attribute<bool>  local{ this, "local", 0 };
 
     #pragma region signInConstructor
     signin(const atoms& args = {})
         : custom_ui_operator::custom_ui_operator{ this, args } {
 
-        
-        readDataFile();
-
-        cout << "username = " << usernameBox.text << endl;
-        cout << "authToken = " << authToken << endl;
-        cout << "rememberMe = " << rememberMeCheck << endl;
-
+               
         //Store the session pointer in the t_symbol
         SessionSym->s_thing = (c74::max::t_object*)theSession;
         
@@ -308,7 +362,10 @@ public:
         
         
         //Cannot access attributes in the constructor, so launch a thread that will run as soon as the constructor finishes to complete remaining initialization.
+
         if (!dummy()) {
+            readDataFile();
+
             postConstructionInit = std::thread(&signin::postConstructionInitialization, this);
             postConstructionInit.detach();
             constructionComplete = true;
@@ -326,9 +383,9 @@ public:
                 cv.notify_one();  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
             }
             blinkCursor.join();
-        }
-                
-        if (rememberMeCheck) { writeFile(); }
+        }                
+        
+        //if (rememberMeCheck) { writeFile(); }
 
         //Clear Exists->s_thing when deleting the object or closing the patch.
         c74::max::t_symbol* Exists = c74::max::gensym("AuthenticatorInstance");
@@ -343,14 +400,12 @@ public:
             auto    t { e.target() };
             auto    x { e.x() };
             auto    y { e.y() };
-            
+
             //Detect username password box
             if (objectStateVar == objectState::disconnected) {
                
                 //USERNAME BOX Box ranges are determined programatically in the Paint Function based on the paint context
                 if (x >= usernameBox.x && x <= (usernameBox.x + *fontwidth) && y >= (usernameBox.y - *fontheight) && y <= (usernameBox.y)) {
-                    cout << "YOU CLICKED IN THE signin BOX!" << endl;
-
                     activeTextBoxPtr = &usernameBox;
                     if (!blinkCursor.joinable()) { blinkCursor = std::thread(&signin::toggleCursor, this); }
                     redraw();
@@ -358,8 +413,6 @@ public:
 
                 //PASSWORD BOX Box ranges are determined programatically
                 else if (x >= passwordBox.x && x <= (passwordBox.x + *fontwidth) && y >= (passwordBox.y - *fontheight) && y <= (passwordBox.y)) {
-                    cout << "YOU CLICKED IN THE PASSWORD BOX!" << endl;
-                    
                     activeTextBoxPtr = &passwordBox;
                     if (!blinkCursor.joinable()) { blinkCursor = std::thread(&signin::toggleCursor, this); }
                     redraw();
@@ -432,38 +485,7 @@ public:
                 activeTextBoxPtr = NULL;
                 stopCursorThread();
 
-
-
-
-                auto onSuccess = [this] (std::string token){
-                    cout << "connected!" << endl;
-                    if (objectStateVar == objectState::newAccountAttempt) { usernameBox.text = newUsernameBox.text; }
-                    authToken = token;                    
-                    writeFile();
-                    objectStateVar = objectState::connected;
-                    redraw();
-                    };
-
-                auto onError = [this] (std::string error) {
-                    if (objectStateVar == objectState::newAccountAttempt && error == "Invalid credentials.") { error = "Email already in use."; }
-                    errorMessage = error;
-                    if (objectStateVar == objectState::newAccountAttempt) { objectStateVar = objectState::newAccount; } 
-                    else if (objectStateVar == objectState::connecting) { objectStateVar = objectState::disconnected; }
-
-                    redraw();
-                    };
-
-
-                if (objectStateVar == objectState::disconnected) {
-                    theSession->signInEmail("", passwordBox.text, usernameBox.text, 0, local, onSuccess, onError);
-                    objectStateVar = objectState::connecting;
-                    redraw();
-                }
-                else if (objectStateVar == objectState::newAccount) {
-                    theSession->signInEmail(newEmailBox.text, newPasswordBox.text, newUsernameBox.text, 1, local, onSuccess, onError);
-                    objectStateVar = objectState::newAccountAttempt;
-                    redraw();
-                }
+                authenticateWithEmail();
 
                 
 
@@ -479,7 +501,6 @@ public:
 
     message<> focusgained{ this, "focusgained",
         MIN_FUNCTION {
-             cout << "focusgained" << endl;
              return {};
          }
 
@@ -487,9 +508,8 @@ public:
 
     message<> focuslost{ this, "focuslost",
      MIN_FUNCTION {
-         cout << "focuslost" << endl;
-        
-        //celar active textBox.
+       
+        //clear active textBox.
         activeTextBoxPtr = NULL;
     
     return {};
@@ -509,11 +529,9 @@ public:
                     else {
                         activeTextBoxPtr = getNextTextBox(activeTextBoxPtr, signInTextBoxPtrs);
                     }
-                    cout << "tab!" << endl;
                 }                
                 else if (character >= 33 && character <= 126 && activeTextBoxPtr->text.length() < 32) { activeTextBoxPtr->text += character; }  //else if it is an allowed character then add it to the string  (see decimal values for allowed characters: https://web.alfredstate.edu/faculty/weimandn/miscellaneous/ascii/ascii_index.html)
         }
-        cout << "key is " << int(args[4]) << endl;
         redraw();
         return {1};
 

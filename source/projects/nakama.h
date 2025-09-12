@@ -26,7 +26,7 @@ private:                //We protect matters related to the Session because we d
  
     //std::string _serverKey = "defaultKey";
     std::string _localHost = "127.0.0.1";
-    std::string _serverDomain = "54.245.57.30";  //EC2 - 54.245.57.3	  //Joe's IP 73.11.171.178 //LocalHost : 127.0.0.1
+    std::string _serverDomain = "54.245.57.3";  //EC2 - 54.245.57.3	  //Joe's IP 73.11.171.178 //LocalHost : 127.0.0.1
 
     //The litany of subfunctions
     void theTick() {
@@ -37,8 +37,7 @@ private:                //We protect matters related to the Session because we d
                 _rtClient->tick();
                 //std::cout << "rtclient tick" << std::endl;
             }
-            //std::cout << "Tick\n";
-            //std::cout << "Session Active = " << clientActive << "\n";
+            //std::cout << "Tick" << std::endl;
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
         std::cout << "stopped ticking" << std::endl;
@@ -66,69 +65,6 @@ private:                //We protect matters related to the Session because we d
         return;
     };
     
-    void authenticateClientDeviceId(std::string deviceID, std::string userName, std::function<void()> onSuccess = nullptr, std::function<void (std::string)> onError = nullptr) {
-        
-        auto successCallback = [this, userName, onSuccess](NSessionPtr session)
-        {
-            //Authenticate Device impelemnts a Callback That Returns a Session Pointer.
-            std::cout << session->getAuthToken() << std::endl;
-            std::cout << "GOT THE TOKEN!\n";
-            _session = session;
-            updateDisplayName(userName);
-            startRtClient();
-            onSuccess();
-
-            //TODO: save session token in your storage
-
-        };
-        
-        auto errorCallback = [this, onError](const NError& error)
-        {
-            //per "peek definition" NError is a struct.  It contins a Message and a code.  You can print the error.message, or use the toString funct8ion that the API has defined.   
-            std::cout << "Something went wrong.  Code = " << int(error.code) << "   " << error.message << std::endl;
-            if (int(error.code) == -1) { onError("Unable to reach the server."); }
-            else { onError("Something went wrong."); }
-            //stopTheTicker();
-        };
-
-
-        _client->authenticateDevice(deviceID, opt::nullopt, opt::nullopt, {}, successCallback, errorCallback);
-       
-        return;
-        
-    }
-    void authenticateClientEmail(const std::string& email, const std::string& password, const std::string& userName, bool create, std::function<void(std::string)> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr) {
-
-        auto successCallback = [this, userName, onSuccess](NSessionPtr session)
-            {
-                //Authenticate Device impelements a Callback That Returns a Session Pointer.
-                std::cout << session->getAuthToken() << std::endl;
-                
-                std::cout << "GOT THE TOKEN!\n";
-                _session = session;
-                startRtClient();
-                onSuccess(session->getAuthToken());
-                //TODO: save session token in your storage
-
-            };
-
-        auto errorCallback = [this, onError](const NError& error)
-            {
-                //per "peek definition" NError is a struct.  It contins a Message and a code.  You can print the error.message, or use the toString funct8ion that the API has defined.   
-                
-                std::cout << "Something went wrong.  Code = " << int(error.code) << "   " << error.message << std::endl;
-                if (int(error.code) == -1) { onError("Unable to reach the server."); }
-                else if (int(error.code) == 4 || int(error.code) == 3 || int(error.code) == 2 || int(error.code) == 1) { onError(error.message.substr(9)); }
-                else { onError("Something went wrong."); }
-                //stopTheTicker();
-                
-            };
-
-        _client->authenticateEmail(email, password, userName, create, {}, successCallback, errorCallback);
-
-
-        return;
-    }
 
 
     void updateDisplayName(std::string displayName) {
@@ -180,47 +116,101 @@ public:
         return;
     }
     
-    void signInDeviceId(const std::string& deviceId, const std::string& userName, bool local = 0, std::function<void()> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr)
-    {
-        initializeClient(local);
-         authenticateClientDeviceId(deviceId, userName, onSuccess, onError);        
+    void authenticateClientDeviceId(std::string deviceID, std::string userName, std::function<void()> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr) {
+
+        auto successCallback = [this, userName, onSuccess](NSessionPtr session)
+            {
+                //Authenticate Device impelemnts a Callback That Returns a Session Pointer.
+                std::cout << session->getAuthToken() << std::endl;
+                std::cout << "GOT THE TOKEN!\n";
+                _session = session;
+                updateDisplayName(userName);
+                startRtClient();
+                onSuccess();
+
+                //TODO: save session token in your storage
+
+            };
+
+        auto errorCallback = [this, onError](const NError& error)
+            {
+                //per "peek definition" NError is a struct.  It contins a Message and a code.  You can print the error.message, or use the toString funct8ion that the API has defined.   
+                std::cout << "Something went wrong.  Code = " << int(error.code) << "   " << error.message << std::endl;
+                if (int(error.code) == -1) { onError("Unable to reach the server."); }
+                else { onError("Something went wrong."); }
+                //stopTheTicker();
+            };
+
+
+        _client->authenticateDevice(deviceID, opt::nullopt, opt::nullopt, {}, successCallback, errorCallback);
+
         return;
+
     }
-    void signInEmail(const std::string& email, const std::string& password, const std::string& userName, bool create,  bool local = 0, std::function<void(std::string)> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr)
-    {
-        initializeClient(local);
-        authenticateClientEmail(email, password, userName, create, onSuccess, onError);
+    void authenticateClientEmail(const std::string& email, const std::string& password, const std::string& userName, bool create, std::function<void(std::string, std::string)> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr) {
+
+        auto successCallback = [this, userName, onSuccess](NSessionPtr session)
+            {
+                //Authenticate Device impelements a Callback That Returns a Session Pointer.
+                std::cout << session->getAuthToken() << std::endl;
+
+                std::cout << "GOT THE TOKEN!\n";
+                _session = session;
+                startRtClient();
+                onSuccess(session->getAuthToken(), session->getRefreshToken());
+
+            };
+
+        auto errorCallback = [this, onError](const NError& error)
+            {
+                //per "peek definition" NError is a struct.  It contins a Message and a code.  You can print the error.message, or use the toString funct8ion that the API has defined.   
+
+                std::cout << "Something went wrong.  Code = " << int(error.code) << " \n  " << error.message << std::endl;
+                if (int(error.code) == -1) { onError("Unable to reach the server."); }
+                else if (int(error.code) == 4 || int(error.code) == 3 || int(error.code) == 2 || int(error.code) == 1) { onError(error.message.substr(9)); }
+                else if (int(error.code) == -2) { onError(error.message.substr(66, 66 + 13)); std::cout << "the error message is " << error.message.substr(66, 66 + 13) << std::endl; }
+                else { onError("Something went wrong."); }
+
+            };
+
+        NStringMap vars = {
+        { "clientVersion", "1.1" }
+        };
+
+        _client->authenticateEmail(email, password, userName, create, vars, successCallback, errorCallback);
+
+
         return;
     }
 
-    void restoreTheSession(std::string authToken) {
+
+    void refreshTheSession(std::string authToken, std::string refreshToken, std::function<void(std::string, std::string)> onSuccess = nullptr, std::function<void(std::string)> onError = nullptr) {
         //if there is a Session token in storage, try to use it.
         if (!authToken.empty())
         {
             // Lets check if we can restore a cached session.
-            initializeClient();
-            auto session = restoreSession(authToken, "refreshToken");
+            auto session = restoreSession(authToken, refreshToken);
             _session = session;
-            std::cout << "auth token is " << _session->getAuthToken() << std::endl;
-            auto refreshSuccessCallback = [](NSessionPtr session)
+            
+            auto refreshSuccessCallback = [onSuccess](NSessionPtr session)
                 {
-                    std::cout << "Session successfully refreshed" << std::endl;
+                    onSuccess(session->getAuthToken(), session->getRefreshToken());
                 };
 
-            auto refreshErrorCallback = [](const NError& error)
+            auto refreshErrorCallback = [onError](const NError& error)
                 {
                     
-                    std::cout << "refresh error " << error.message << std::endl;
-                        // Couldn't refresh the session so reauthenticate.
-                    // client->authenticateDevice(...)
+                    std::cout << "Something went wrong.  Code = " << int(error.code) << "   " << error.message << std::endl;
+                    if (int(error.code) == -1) { onError("Unable to reach the server."); }
+                    else if (int(error.code) == 4 || int(error.code) == 3 || int(error.code) == 2 || int(error.code) == 1) { onError(error.message.substr(9)); }
+                    else { onError("Something went wrong."); }
+                    
                 };
 
             // Refresh the existing session
-            //_client->authenticateRefresh(session, refreshSuccessCallback, refreshErrorCallback);
-
-            // Refresh the existing session
-            std::cout << "is session created?" << session->isCreated() << std::endl;
-            std::cout << "is session expired?" << session->isExpired() << std::endl;
+            _client->authenticateRefresh(session, refreshSuccessCallback, refreshErrorCallback);
+            std::cout << "tried to refresh" << std::endl;
+            
             //if (!session->isExpired())
            // {
                 // Session was valid and is restored now.
@@ -231,8 +221,7 @@ public:
     }
 
     void signOut() {
-        stopTheTicker();        
-          
+        _client->disconnect();          
     } //TODO
     #pragma endregion
 
