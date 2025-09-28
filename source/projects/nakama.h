@@ -26,7 +26,7 @@ private:                //We protect matters related to the Session because we d
  
     //std::string _serverKey = "defaultKey";
     std::string _localHost = "127.0.0.1";
-    std::string _serverDomain = "54.245.57.3";  //EC2 - 54.245.57.3	  //Joe's IP 73.11.171.178 //LocalHost : 127.0.0.1
+    std::string _serverDomain = "server.interactivescores.online";  //EC2 - 54.245.57.3	  //Joe's IP 73.11.171.178 //LocalHost : 127.0.0.1
 
     //The litany of subfunctions
     void theTick() {
@@ -168,13 +168,15 @@ public:
                 std::cout << "Something went wrong.  Code = " << int(error.code) << " \n  " << error.message << std::endl;
                 if (int(error.code) == -1) { onError("Unable to reach the server."); }
                 else if (int(error.code) == 4 || int(error.code) == 3 || int(error.code) == 2 || int(error.code) == 1) { onError(error.message.substr(9)); }
-                else if (int(error.code) == -2) { onError(error.message.substr(66, 66 + 13)); std::cout << "the error message is " << error.message.substr(66, 66 + 13) << std::endl; }
+                else if (int(error.code) == 0) { onError(error.message.substr(9, (error.message.length() - 9 - 7))); }
                 else { onError("Something went wrong."); }
+
+                std::cout << "**NERROR Code** " << "\n" << int(error.code) << " \n \n " << "**NERROR Message**" << "\n" << error.message << std::endl;
 
             };
 
         NStringMap vars = {
-        { "clientVersion", "1.1" }
+        { "clientVersion", "1.0" }
         };
 
         _client->authenticateEmail(email, password, userName, create, vars, successCallback, errorCallback);

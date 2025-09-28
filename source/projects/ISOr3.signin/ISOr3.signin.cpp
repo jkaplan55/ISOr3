@@ -10,9 +10,11 @@
 
 #include "c74_min.h"
 #include "../custom_min_operator_ui.h"   //https://cycling74.com/forums/how-does-jboxtextfield-work
-#include <string.h>
+
+#include <string>
 #include <thread>
 #include <fstream>
+
 #include "json.hpp"
 #include "../nakama.h"
 
@@ -161,6 +163,7 @@ private:
     };
 
     objectState objectStateVar = objectState::disconnected;
+    objectState stateOnPreviousPaint = objectStateVar;
     #pragma endregion
      
     //DECLARATIONS FOR DATA PERSISTENCE
@@ -287,9 +290,10 @@ private:
             if (objectStateVar == objectState::newAccountAttempt) { usernameBox.text = newUsernameBox.text; }
             authToken = auth;
             refreshToken = refresh;
-            writeFile();
-            objectStateVar = objectState::connected;
-            redraw();
+            newAccountCheck = 0;
+            if (rememberMeCheck) { writeFile(); };
+            objectStateVar = objectState::connected;            
+            redraw();            
             };
 
         auto onError = [this](std::string error) {
@@ -299,7 +303,6 @@ private:
             cout << errorMessage << endl;
             if (objectStateVar == objectState::newAccountAttempt) { objectStateVar = objectState::newAccount; }
             else if (objectStateVar == objectState::connecting) { objectStateVar = objectState::disconnected; }
-
             redraw();
             };
 
@@ -344,8 +347,8 @@ public:
     MIN_AUTHOR{ "Cycling '74" };
     MIN_RELATED{ "comment, umenu, textbutton" };
 
-    inlet<>  input{ this, "(number) value to set" };
-    outlet<> output{ this, "(number) value" };
+    inlet<>  input{ this, "(list) signout" };
+    outlet<> output{ this, "(anything) bang on successful auth" };
 
     attribute<bool>  local{ this, "local", 0 };
 
@@ -486,11 +489,7 @@ public:
                 stopCursorThread();
 
                 authenticateWithEmail();
-
-                
-
-                newAccountCheck = 0;
-                if (rememberMeCheck) { writeFile(); };
+             
                 errorMessage = ""; //clear the errorMessage when connecting.
             }
 
@@ -556,6 +555,23 @@ public:
 
     //PAINT FUNCTIONS
     #pragma region PaintFunctions
+    void outputObjectStateChange() {
+        if (objectStateVar != stateOnPreviousPaint) {
+            string stateString;
+            switch (objectStateVar) {
+                case objectState::disconnected: stateString = "disconnected"; break;
+                case objectState::connecting: stateString = "connecting"; break;
+                case objectState::connected: stateString = "connected"; break;
+                case objectState::newAccount: stateString = "newAccount"; break;
+                case objectState::newAccountAttempt : stateString = "newAccountAttempt";  break;
+            }
+            
+            output.send(stateString);
+            stateOnPreviousPaint = objectStateVar;
+
+        }
+    }
+
     double centerText(target t, string textToCenter, double fontsize) {
         c74::max::jgraphics_set_font_size(t, fontsize);
         c74::max::jgraphics_text_measure(t, textToCenter.c_str(), fontwidth, fontheight);
@@ -784,6 +800,7 @@ public:
                      content {"Connected"}
             };
 
+            
 
         }
 
@@ -847,13 +864,20 @@ public:
         MIN_FUNCTION {
             target t        { args };
             
-            text{			// ShowTitle
+            //Output Message if Object State has Changed.
+            outputObjectStateChange();
+
+    
+            // ShowTitle
+            text{			
                      t, color {color::predefined::black},
                      position {35, 85},
                      fontface {m_fontname},
                      fontsize {36},
                      content {"Interactive Scores Online"}
             };
+
+            
 
             //Place the TextBoxes
             usernameBox.x = centerText(t, placeholderString, m_fontsize);
