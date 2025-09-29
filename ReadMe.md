@@ -7,7 +7,9 @@ This package was created using the Min-DevKit for Max, an API and supporting too
 
 The Package builds on Xcode 9 or Later or Visual Studio 2017 or later:
 
-* On the Mac this means **Xcode 9 or later** (you can get from the App Store for free). 
+* On Mac this means **Xcode 9 or later** (you can get from the App Store for free).
+* On Mac you will also need to install homebrew, and then use hombrew to install cmake.
+* On Mac you may also need to open Xcode.  Go to Xcode->Settings->Locaton.  Find the Command Line tools and specifically set the Xcode version.  This will allow cmake to find Clang for your Xcode Version.
 * On Windows this means **Visual Studio 2017** (you can download a free version from Microsoft). The installer for Visual Studio 2017 offers an option to install Git, which you should choose to do.
 
 Building the package requires Cmake:
@@ -39,11 +41,13 @@ Build Project Files:
 #### Xcode [TODO add Nakama Release 2.8.5 to includes package and document]
 For each Max Object Target (ignore ALL BUILD, LIB, and RUN_TESTS):  
 * Build Settings -> Architectures:  remove `x86_64` 
-* Build Settings -> Header Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/include`, `$(SolutionDir)\..\includes\Windows\nakama-cpp-sdk\include`, `$(SolutionDir)..\includes\cpr\include`, and `$(SolutionDir)..\includes`
-* Build Settings -> Runpath Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/lib`
-* Build Settings -> Library Search Paths: add `$(SRCROOT)/includes/Mac/nakama-sdk/lib`
-* General -> Frameworks and Libraries: add `libnakama-sdk.dylib` from `../includes/Mac/nakama-sdk/lib`
-
+* Build Settings -> Header Search Paths: add `"$(SRCROOT)/includes/NakamaMac/lib/nakama-sdk.framework`, `$(SRDROOT)/includes/cpr/include`, and `$(SRCROOT)/includes`
+* Build Settings -> Runpath Search Paths: add `$(SRCROOT)/includes/NakamaMac/lib`
+* Build Settings -> Library Search Paths: add `$(SRCROOT)/includes/NakamaMac/lib`
+* General -> Frameworks and Libraries: add `libnakama-sdk.dylib` from `../includes/NakamaMac/lib`
+* You may need to update the search paths of some of the Max Libraries do to bad quoting around paths with spaces.
+* Set MacOS Deployment Target to 10.15.  Only Seqouia and later is supported.
+* Set the Build Target in the bar at the top to All Build
 (An xcconfig file can be found int he settings folder off the root.  But it does work correclty in the current version)
 
 #### Visual Studio
