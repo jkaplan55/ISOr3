@@ -223,7 +223,7 @@ private:
 
 #ifdef TARGET_OS_MAC
         auto external_path = path{"ISOr3.signin.mxo", path::filetype::external, 0};  //Get the path to the external
-        string datafilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 16) + "ISOdata.dat";
+        string dataFilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 16) + "ISOdata.dat";
 #elif _WIN64
         auto external_path = path{ "ISOr3.signin.mxe64", path::filetype::external, 0 };  //Get the path to the external
         string dataFilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 18) + "ISOdata.dat";
