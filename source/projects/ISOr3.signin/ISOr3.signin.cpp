@@ -15,6 +15,7 @@
 #include <thread>
 #include <fstream>
 
+
 #include "json.hpp"
 #include "../nakama.h"
 
@@ -215,11 +216,25 @@ private:
         return;
     }
 
+    //
     //Read and Write the File
-    void readDataFile() {
-        std::ifstream file;
-        file.open("ISOdata.dat");
+    std::fstream openDataFile(){
+        std::fstream file;
 
+        auto external_path = path{"ISOr3.signin.mxo", path::filetype::external, 0};  //Get the path to the external
+        string datafilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 16) + "ISOdata.dat";
+
+        cout << datafilePath << endl;
+ 
+        file.open(datafilePath);
+      
+        return file;
+    }
+    
+    void readDataFile() {
+        std::fstream file = openDataFile();
+
+                
         if (file.is_open()) {
             std::stringstream buffer;
             buffer << file.rdbuf();
@@ -229,9 +244,9 @@ private:
             deJsonifyUserData(encrypt_decrypt(jsonString, *"d"));
         }
 
-
+ 
         else {
-            //cerr << "Error reading data file" << endl;
+            cerr << "Error reading data file" << endl;
         }
 
 
@@ -239,15 +254,15 @@ private:
     }
 
     void writeFile() {
-        std::ofstream file;
-        file.open("ISOdata.dat");
+        std::fstream file = openDataFile();
+        
         if (file.is_open()) {
             //file << gen_random(56) << jsonifyUserData() << gen_random(124) << std::endl;
             file << gen_random(56) << encrypt_decrypt(jsonifyUserData(), *"d") << gen_random(124) << std::endl;
             file.close();
         }
         else {
-            //cout << "Error writing userData file" << endl;
+            cout << "Error writing userData file" << endl;
         }
 
         return;
@@ -516,11 +531,16 @@ public:
     };
 
     message<> key{ this, "key", MIN_FUNCTION {
-        char character = int(args[4]);
+        int character = int(args[4]);
               
         if (activeTextBoxPtr) {
+          #ifdef TARGET_OS_MAC
+                if (character == 127 && !activeTextBoxPtr->text.empty()) { activeTextBoxPtr->text.pop_back(); } //popback on backspace
+                else if (character == 127 && activeTextBoxPtr->text.empty()) { }  //do nothing on backspace if box is already empty
+         #elif _WIN64
                 if (character == 8 && !activeTextBoxPtr->text.empty()) { activeTextBoxPtr->text.pop_back(); } //popback on backspace
                 else if (character == 8 && activeTextBoxPtr->text.empty()) { }  //do nothing on backspace if box is already empty
+          #endif
                 else if (character == 9) { // Switch active box on tab //
                     if (objectStateVar == objectState::newAccount) {
                         activeTextBoxPtr = getNextTextBox(activeTextBoxPtr, newAccountTextBoxPtrs);
