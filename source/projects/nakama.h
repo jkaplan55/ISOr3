@@ -176,7 +176,7 @@ public:
             };
 
         NStringMap vars = {
-        { "clientVersion", "1.0" }
+        { "clientVersion", "1.1" }
         };
 
         _client->authenticateEmail(email, password, userName, create, vars, successCallback, errorCallback);

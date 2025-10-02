@@ -218,22 +218,26 @@ private:
 
     //
     //Read and Write the File
-    std::fstream openDataFile(){
-        std::fstream file;
+    std::string getDataFilePath(){
+        std::ofstream file;
 
+#ifdef TARGET_OS_MAC
         auto external_path = path{"ISOr3.signin.mxo", path::filetype::external, 0};  //Get the path to the external
         string datafilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 16) + "ISOdata.dat";
-
-        cout << datafilePath << endl;
- 
-        file.open(datafilePath);
-      
-        return file;
+#elif _WIN64
+        auto external_path = path{ "ISOr3.signin.mxe64", path::filetype::external, 0 };  //Get the path to the external
+        string dataFilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 18) + "ISOdata.dat";
+#endif
+        
+        cout << dataFilePath << endl;
+        
+        return dataFilePath;
     }
     
     void readDataFile() {
-        std::fstream file = openDataFile();
-
+        std::ifstream file;
+        std::string dataFilePath = getDataFilePath();
+        file.open(dataFilePath);
                 
         if (file.is_open()) {
             std::stringstream buffer;
@@ -254,7 +258,9 @@ private:
     }
 
     void writeFile() {
-        std::fstream file = openDataFile();
+        std::ofstream file;
+        std::string dataFilePath = getDataFilePath();
+        file.open(dataFilePath);
         
         if (file.is_open()) {
             //file << gen_random(56) << jsonifyUserData() << gen_random(124) << std::endl;
