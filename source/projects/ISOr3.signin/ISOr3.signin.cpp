@@ -219,8 +219,6 @@ private:
     //
     //Read and Write the File
     std::string getDataFilePath(){
-        std::ofstream file;
-
 #ifdef TARGET_OS_MAC
         auto external_path = path{"ISOr3.signin.mxo", path::filetype::external, 0};  //Get the path to the external
         string dataFilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 16) + "ISOdata.dat";
