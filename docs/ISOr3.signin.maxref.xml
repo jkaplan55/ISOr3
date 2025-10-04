@@ -29,12 +29,12 @@
 
 	<methodlist>
 
-		<method name='signout'>
+		<method name='key'>
 			<digest></digest>
 			<description></description>
 		</method>
 
-		<method name='key'>
+		<method name='signout'>
 			<digest></digest>
 			<description></description>
 		</method>
@@ -46,7 +46,37 @@
 
 	<attributelist>
 
-		<attribute name='local' get='1' set='1' type='long' size='1' >
+		<attribute name='border' get='1' set='1' type='long' size='1' >
+			<digest></digest>
+			<description></description>
+		</attribute>
+
+		<attribute name='boxcolor' get='1' set='1' type='float64' size='1' >
+			<digest></digest>
+			<description></description>
+		</attribute>
+
+		<attribute name='errorcolor' get='1' set='1' type='float64' size='1' >
+			<digest></digest>
+			<description></description>
+		</attribute>
+
+		<attribute name='inputColor' get='1' set='1' type='float64' size='1' >
+			<digest></digest>
+			<description></description>
+		</attribute>
+
+		<attribute name='local' get='1' set='0' type='long' size='1' >
+			<digest></digest>
+			<description></description>
+		</attribute>
+
+		<attribute name='roundness' get='1' set='1' type='long' size='1' >
+			<digest></digest>
+			<description></description>
+		</attribute>
+
+		<attribute name='textcolor' get='1' set='1' type='float64' size='1' >
 			<digest></digest>
 			<description></description>
 		</attribute>

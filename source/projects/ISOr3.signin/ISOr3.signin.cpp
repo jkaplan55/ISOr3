@@ -371,13 +371,33 @@ public:
     inlet<>  input{ this, "(list) signout" };
     outlet<> output{ this, "(anything) bang on successful auth" };
 
-    attribute<bool>  local{ this, "local", 0 };
+    
+
+    attribute<bool>  local{ this, "local", 0, range { 0, 1 }, readonly {1},         setter{ MIN_FUNCTION {
+
+                cout << "local attribute setter" << endl;
+                return args;
+            } } };
+
+    attribute<color> textcolor{ this, "textcolor", color::predefined::black, title {"Text Color"}
+    };
+    
+    attribute<color> lockedinputcolor{ this, "inputColor", color::predefined::white, title {"Locked Input Color"}
+    };
+    
+    attribute<color> boxcolor{ this, "boxcolor", {0.3, 0.3, 0.3, 1.0}, title {"Box Color"}};
+
+    attribute<color> errorcolor{ this, "errorcolor", {0.847059, 0., 0., 1.}, title {"Error Color"}};
+
+    attribute<int, threadsafe::no, limit::clamp> border{ this, "border", 0,  range { 0, 8 }, title {"Border Size"}};
+
+    attribute<int> roundness{ this, "roundness", 15, title {"Roundness of Box Corners"}};
+
 
     #pragma region signInConstructor
     signin(const atoms& args = {})
         : custom_ui_operator::custom_ui_operator{ this, args } {
 
-               
         //Store the session pointer in the t_symbol
         SessionSym->s_thing = (c74::max::t_object*)theSession;
         
@@ -416,7 +436,18 @@ public:
         Exists->s_thing = NULL;
     }
 
-    
+    message<> m_notify{ this, "notify",
+        MIN_FUNCTION {
+            notification n { args };
+            symbol attr_name { n.attr_name() };
+
+            if (attr_name != k_sym__empty) {
+                redraw();
+            }
+            return {};
+        }
+    };
+
     
     message<> mousedown{ this, "mousedown",
         MIN_FUNCTION {
@@ -424,7 +455,7 @@ public:
             auto    t { e.target() };
             auto    x { e.x() };
             auto    y { e.y() };
-
+            cout << "Mousedown" << endl;
             //Detect username password box
             if (objectStateVar == objectState::disconnected) {
                
@@ -521,6 +552,7 @@ public:
 
     message<> focusgained{ this, "focusgained",
         MIN_FUNCTION {
+             cout << "focusgained" << endl;
              return {};
          }
 
@@ -528,7 +560,7 @@ public:
 
     message<> focuslost{ this, "focuslost",
      MIN_FUNCTION {
-       
+       cout << "focuslost" << endl;
         //clear active textBox.
         activeTextBoxPtr = NULL;
     
@@ -579,8 +611,22 @@ public:
          }
     };
 
+
+    c74::max::t_jrgba styleColor;
+
+    message<> maxclass_setup{ this, "maxclass_setup",
+    MIN_FUNCTION {
+        c74::max::t_class * c = args[0];
+   
+        c74::max::class_attr_stylemap(c, "yourcolorname", "Active Toolbar Background");
+        return {};
+        }
+    };
+
     //PAINT FUNCTIONS
     #pragma region PaintFunctions
+
+    //If object state has changed, send message to outlet at Paint Time (we do it here rather than in the successcallback for thread safety)
     void outputObjectStateChange() {
         if (objectStateVar != stateOnPreviousPaint) {
             string stateString;
@@ -618,15 +664,15 @@ public:
         if (objectStateVar == objectState::disconnected || objectStateVar == objectState::newAccount) {
             rect<stroke> {
                 t,
-                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    color{ boxcolor },
                     position{ (textBox.x - textBuffer - 5), (textBox.y - m_fontsize - 5) }, //the fontsize adds additional space above the font to give clearance for the line above.  The fontheight coming back from jgraphics_text_measure adds even more.  Through eyeballing and trial and error,  25% of the the fontheight seems to be about the amount that gets added above the top of the character.  We add this to the bottom of the rect to get the text vertically centerred.
                     size{ (*fontwidth + (2 * textBuffer + 10)), (m_fontsize + textBuffer + 10) },
                     line_width{ 3.0 },
-                    corner{ 15, 15 }
+                    corner{ double(roundness), double(roundness) }
             };
 
             text{			// username display
-                  t, color {color::predefined::black},
+                  t, color {textcolor},
                   position {textBox.x, textBox.y},
                   fontface {m_fontname},
                   fontsize {m_fontsize},
@@ -638,16 +684,17 @@ public:
 
             rect<fill> {
                 t,
-                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    color{ boxcolor },
                     position{ (textBox.x - textBuffer - 5), (textBox.y - m_fontsize - 5) }, //the fontsize adds additional space above the font to give clearance for the line above.  The fontheight coming back from jgraphics_text_measure adds even more.  Through eyeballing and trial and error,  25% of the the fontheight seems to be about the amount that gets added above the top of the character.  We add this to the bottom of the rect to get the text vertically centerred.
                     size{ (*fontwidth + (2 * textBuffer + 10)), (m_fontsize + textBuffer + 10) },
                     line_width{ 3.0 },
-                    corner{ 15, 15 }
+                    corner{ double(roundness), double(roundness)
+ }
             };
 
             if (textBox.masked == false) {  //if text is masked don't paint it when box is unavailable
                 text{			// username display
-                  t, color {color::predefined::white},
+                  t, color {lockedinputcolor},
                   position {textBox.x, textBox.y},
                   fontface {m_fontname},
                   fontsize {m_fontsize},
@@ -657,7 +704,7 @@ public:
         }
 
         text{			// labelText
-                t, color {color::predefined::black},
+                t, color {textcolor},
                 position {textBox.x - textBuffer - 5, textBox.y - m_fontsize - 10},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
@@ -672,15 +719,15 @@ public:
     if (objectStateVar == objectState::newAccount || objectStateVar == objectState::newAccountAttempt) {
         rect<> {  //a rect for the password
             t,
-                color{ {0.3, 0.3, 0.3, 1.0} },
+                color{ boxcolor },
                 position{ (newUsernameBox.x - 3), 250 },
                 size{ 15, 15 },
                 line_width{ 3.0 }
-                // corner{ 15, 15 }
+                // corner{ double(roundness), double(roundness) }
         };
 
         text{			// labelText
-                t, color {color::predefined::black},
+                t, color {textcolor},
                 position { newUsernameBox.x - 3 + 19 , 250 + 12},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
@@ -690,15 +737,15 @@ public:
     else {
         rect<> {  //a rect for the password
             t,
-                color{ {0.3, 0.3, 0.3, 1.0} },
+                color{ boxcolor },
                 position{ (usernameBox.x - 3), 235 },
                 size{ 15, 15 },
                 line_width{ 3.0 }
-                // corner{ 15, 15 }
+                // corner{ double(roundness), double(roundness) }
         };
 
         text{			// labelText
-                t, color {color::predefined::black},
+                t, color {textcolor},
                 position { usernameBox.x - 3 + 19 , 247},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
@@ -712,14 +759,14 @@ public:
         if (objectStateVar == objectState::newAccount || objectStateVar == objectState::newAccountAttempt) {
             line<> {
                 t,
-                    color{ color::predefined::black },
+                    color{ textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 3, 250 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
                     destination{ usernameBox.x - 3 + 7, 250 + 15 - 3 }
             };
             line<> {
                 t,
-                    color{ color::predefined::black },
+                    color{ textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 7, 250 + 15 - 3 },
                     destination{ usernameBox.x - 3 + 15 - 3, 250 + 3 }
@@ -728,14 +775,14 @@ public:
         else {
             line<> {
                 t,
-                    color{ color::predefined::black },
+                    color{ textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 3, 235 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
                     destination{ usernameBox.x - 3 + 7, 235 + 15 - 3 }
             };
             line<> {
                 t,
-                    color{ color::predefined::black },
+                    color{ textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 7, 235 + 15 - 3 },
                     destination{ usernameBox.x - 3 + 15 - 3, 235 + 3 }
@@ -747,16 +794,16 @@ public:
         int objectHeight = t.height();
         rect<> {  //a rect for the password
             t,
-                color{ {0.3, 0.3, 0.3, 1.0} },
-                position{ 8, objectHeight - 22},
+                color{ boxcolor },
+                position{ 12, objectHeight - 26},
                 size{ 15, 15 },
                 line_width{ 3.0 }
-                // corner{ 15, 15 }
+                // corner{ double(roundness), double(roundness) }
         };
 
         text{			// labelText
-                t, color {color::predefined::black},
-                position { 8 + 19 , objectHeight - 22 + 12},
+                t, color {textcolor},
+                position { 12 + 19 , objectHeight - 26 + 12},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
                 content {"New Account"}
@@ -769,17 +816,17 @@ public:
 
         line<> {
             t,
-                color{ color::predefined::black },
+                color{ textcolor },
                 line_width{ 2.0 },
-                origin{ 8 + 3, objectHeight - 22 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
-                destination{ 8 + 7, objectHeight - 22 + 15 - 3 }
+                origin{ 12 + 3, objectHeight - 26 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
+                destination{ 12 + 7, objectHeight - 26 + 15 - 3 }
         };
         line<> {
             t,
-                color{ color::predefined::black },
+                color{ textcolor },
                 line_width{ 2.0 },
-                origin{ 8 + 7, objectHeight - 22 + 15 - 3 },
-                destination{ 8 + 15 - 3, objectHeight - 22 + 3 }
+                origin{ 12 + 7, objectHeight - 26 + 15 - 3 },
+                destination{ 12 + 15 - 3, objectHeight - 26 + 3 }
         };
     }
 
@@ -789,16 +836,16 @@ public:
 
             rect<fill> {  //a rect for the signin
                 t,
-                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    color{ boxcolor },
                     position{ 158 , 268 },
                     size{ 150.0, 50.0 },
                     line_width{ 3.0 },
-                    corner{ 15, 15 }
+                    corner{ double(roundness), double(roundness) }
             };
 
             int connectCenter = centerText(t, "Connect", m_fontsize);
-            text{			// ShowTitle
-                     t, color {color::predefined::black},
+            text{			
+                     t, color {textcolor},
                      position {connectCenter, 268 + 32},
                      fontface {m_fontname},
                      fontsize {m_fontsize},
@@ -810,16 +857,16 @@ public:
 
             rect<stroke> {  //a rect for the signin
                 t,
-                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    color{ boxcolor },
                     position{ 158 , 268 },
                     size{ 150.0, 50.0 },
                     line_width{ 3.0 },
-                    corner{ 15, 15 }
+                    corner{ double(roundness), double(roundness) }
             };
 
             int connectCenter = centerText(t, "Connected", m_fontsize);
-            text{			// ShowTitle
-                     t, color {color::predefined::black},
+            text{			
+                     t, color {boxcolor},
                      position {connectCenter, 268 + 32},
                      fontface {m_fontname},
                      fontsize {m_fontsize},
@@ -834,16 +881,16 @@ public:
 
             rect<stroke> {  //a rect for the signin
                 t,
-                    color{ {0.3, 0.3, 0.3, 1.0} },
+                    color{ boxcolor },
                     position{ 158 , 268 },
                     size{ 150.0, 50.0 },
                     line_width{ 3.0 },
-                    corner{ 15, 15 }
+                    corner{ double(roundness), double(roundness) }
             };
 
             int connectCenter = centerText(t, "Connecting...", m_fontsize);
-            text{			// ShowTitle
-                     t, color {color::predefined::black},
+            text{		
+                     t, color {boxcolor},
                      position {connectCenter, 268 + 32},
                      fontface {m_fontname},
                      fontsize {m_fontsize},
@@ -856,8 +903,8 @@ public:
         if (objectStateVar == objectState::disconnected || objectStateVar == objectState::newAccount) {
 
             int errorCenter = centerText(t, errorMessage, m_fontsize);
-            text{			// ShowTitle
-                     t, color { {0.847059, 0., 0., 1.} },
+            text{			
+                     t, color { errorcolor},
                      position {errorCenter, 268 + 32 + 35},
                      fontface {m_fontname},
                      fontsize {m_fontsize},
@@ -876,7 +923,7 @@ public:
             else { c74::max::jgraphics_text_measure(t, activeTextBoxPtr->text.c_str(), fontwidth, fontheight); }
             line<> {
                 t,
-                    color{ color::predefined::black },
+                    color{ textcolor },
                     line_width{ 1.0 },
                     origin{ number((activeTextBoxPtr->x + *fontwidth + 1)), number(activeTextBoxPtr->y + 2) },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
                     destination{ number(activeTextBoxPtr->x + *fontwidth + 1), number(activeTextBoxPtr->y + 2 - *fontheight) }
@@ -886,22 +933,40 @@ public:
     
 #pragma endregion
 
+    
     message<> paint{ this, "paint",
         MIN_FUNCTION {
             target t        { args };
             
+
+    c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("yourcolorname"), &styleColor);
+    cout << "styleColor is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
+
+
+
+        // ShowTitle
+        text{
+            t, color { textcolor},
+                 position {35, 85},
+                 fontface {m_fontname},
+                 fontsize {36},
+                 content {"Interactive Scores Online"}
+        };
+
+        //paint border
+
+         rect<> {
+            t,
+                color{ boxcolor },
+                position{ 0 + (border / 2), 0 + (border / 2)},
+                size{ t.width() - (border), t.height() - (border) },
+                line_width{ double(border) },
+                corner{ double(roundness), double(roundness) }
+        };
             //Output Message if Object State has Changed.
             outputObjectStateChange();
-
-    
-            // ShowTitle
-            text{			
-                     t, color {color::predefined::black},
-                     position {35, 85},
-                     fontface {m_fontname},
-                     fontsize {36},
-                     content {"Interactive Scores Online"}
-            };
+           
+           
 
             
 
