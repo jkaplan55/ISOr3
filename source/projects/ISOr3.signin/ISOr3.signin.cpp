@@ -19,8 +19,10 @@
 #include "json.hpp"
 #include "../nakama.h"
 
+
 using namespace c74::min;
 using namespace c74::min::ui;
+
 
 //Using custom uiFlags to get the behaviour i want.
 const long uiflags = 0
@@ -64,6 +66,7 @@ private:
 
     NakamaSessionManager MySession;
     NakamaSessionManager* theSession = &MySession;
+    
     
     
     c74::max::t_symbol* SessionSym = c74::max::gensym("SessionSym");
@@ -118,6 +121,7 @@ private:
         string text;
         bool masked;   //a Bool to determine if text should be masked when painted.
         string labelText;
+
     };
 
     //Declare the TextBoxes
@@ -138,7 +142,7 @@ private:
         // Find the element in the std::array
         auto vectorElementPtr = std::find(textBoxes.begin(), textBoxes.end(), currentTextBox);
         int textBoxIndex = std::distance(textBoxes.begin(), vectorElementPtr);
-        
+
         if (textBoxIndex == textBoxes.size() - 1) {  //If you're at the end go back to the beginning
             return textBoxes[0];
         }
@@ -227,7 +231,7 @@ private:
         string dataFilePath = static_cast<std::string>(external_path).substr(0, static_cast<std::string>(external_path).length() - 18) + "ISOdata.dat";
 #endif
         
-        cout << dataFilePath << endl;
+        //cout << dataFilePath << endl;
         
         return dataFilePath;
     }
@@ -242,7 +246,7 @@ private:
             buffer << file.rdbuf();
             file.close();
             string jsonString = buffer.str().substr(56, buffer.str().length() - 181);
-            cout << encrypt_decrypt(jsonString, *"d") << endl; //the Cypher was failing intermittently with "Q".  I suspect because it was shifting the letters into some character that was causing rdbuf() to end early. Going with a smaller shift.  I will remove this print once I'm confident it is safe.
+            //cout << encrypt_decrypt(jsonString, *"d") << endl; //the Cypher was failing intermittently with "Q".  I suspect because it was shifting the letters into some character that was causing rdbuf() to end early. Going with a smaller shift.  I will remove this print once I'm confident it is safe.
             deJsonifyUserData(encrypt_decrypt(jsonString, *"d"));
         }
 
@@ -368,41 +372,27 @@ public:
 
     inlet<>  input{ this, "(list) signout" };
     outlet<> output{ this, "(anything) bang on successful auth" };
-
     
-
-    attribute<bool>  local{ this, "local", 0, range { 0, 1 }, readonly {1},         setter{ MIN_FUNCTION {
-
-                cout << "local attribute setter" << endl;
-                return args;
-            } } };
-
-    attribute<color> textcolor{ this, "textcolor", color::predefined::black, title {"Text Color"}
-    };
+    c74::max::t_class* myTclass;
     
-    attribute<color> lockedinputcolor{ this, "inputColor", color::predefined::white, title {"Locked Input Color"}
-    };
-    
-    attribute<color> boxcolor{ this, "boxcolor", {0.3, 0.3, 0.3, 1.0}, title {"Box Color"}};
-
-    attribute<color> errorcolor{ this, "errorcolor", {0.847059, 0., 0., 1.}, title {"Error Color"}};
-
-    attribute<int, threadsafe::no, limit::clamp> border{ this, "border", 0,  range { 0, 8 }, title {"Border Size"}};
-
-    attribute<int> roundness{ this, "roundness", 15, title {"Roundness of Box Corners"}};
-
-
-    #pragma region signInConstructor
+    color textColorStyle;
+    c74::max::t_jrgba styleColor;
+#pragma region signInConstructor
     signin(const atoms& args = {})
         : custom_ui_operator::custom_ui_operator{ this, args } {
 
+      
+
+        c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &styleColor);
+        cout << "styleColor in Constructor is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
+
+
         //Store the session pointer in the t_symbol
         SessionSym->s_thing = (c74::max::t_object*)theSession;
-        
+
         //make a singleton        
-        makeSingleton();       
-        
-        
+        makeSingleton();        
+                
         //Cannot access attributes in the constructor, so launch a thread that will run as soon as the constructor finishes to complete remaining initialization.
 
         if (!dummy()) {
@@ -413,9 +403,7 @@ public:
             constructionComplete = true;
         }
     }
-    #pragma endregion
-   
-
+#pragma endregion
 
     ~signin() {
         activeTextBoxPtr = NULL;
@@ -425,15 +413,15 @@ public:
                 cv.notify_one();  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
             }
             blinkCursor.join();
-        }                
-        
+        }
+
         //if (rememberMeCheck) { writeFile(); }
 
         //Clear Exists->s_thing when deleting the object or closing the patch.
         c74::max::t_symbol* Exists = c74::max::gensym("AuthenticatorInstance");
         Exists->s_thing = NULL;
     }
-
+    /*
     message<> m_notify{ this, "notify",
         MIN_FUNCTION {
             notification n { args };
@@ -445,6 +433,48 @@ public:
             return {};
         }
     };
+    */
+    c74::max::t_jrgba u_background;
+
+    message<> maxclass_setup{ this, "maxclass_setup",
+        MIN_FUNCTION {
+            c74::max::t_class * c = args[0];
+            myTclass = c;
+            c74::max::class_attr_stylemap(c, "textcolor", "bgcolor");
+            //c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &styleColor);
+           // cout << "styleColor in class setup is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
+           
+            {
+                class_addattr((c), c74::max::attr_offset_array_new("bgcolor", c74::max::gensym("float64"), (4), (0), (c74::max::method)0L, (c74::max::method)0L, 0, ((c74::max::t_ptr_int)(&(((signin*)0L)->u_background))))); {
+                    c74::max::t_object* theattr = (c74::max::t_object*)class_attr_get(c, c74::max::gensym("bgcolor")); c74::max::object_method_imp((void*)(t_ptr_int)(theattr), (void*)(t_ptr_int)(c74::max::gensym("setmethod")), (void*)(t_ptr_int)(c74::max::gensym("get")), (void*)(t_ptr_int)(0), (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0); c74::max::object_method_imp((void*)(t_ptr_int)(theattr), (void*)(t_ptr_int)(c74::max::gensym("setmethod")), (void*)(t_ptr_int)(c74::max::gensym("set")), (void*)(t_ptr_int)(c74::max::jgraphics_attr_setrgba), (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0);
+                }; class_attr_addattr_parse(c, "bgcolor", "paint", c74::max::gensym("long"), 0, "1");
+            };
+            { { c74::max::t_object* theattr = (c74::max::t_object*)c74::max::class_attr_get(c, c74::max::gensym("bgcolor")); class_attr_addattr_parse(c, "bgcolor", "defaultname", (c74::max::t_symbol*)c74::max::object_method_imp((void*)(t_ptr_int)(theattr), (void*)(t_ptr_int)(c74::max::gensym("gettype")), (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0), 0, "1. 1. 1. 1."); }; class_attr_addattr_parse(c, "bgcolor", "save", c74::max::gensym("long"), 0, "1"); class_attr_addattr_parse(c, "bgcolor", "paint", c74::max::gensym("long"), 0, "1"); };
+            { c74::max::class_attr_addattr_parse(c, "bgcolor", "style", c74::max::gensym("symbol"), 0, "rgba"); class_attr_addattr_format(c, "bgcolor", "label", c74::max::gensym("symbol"), 0, "s", c74::max::gensym_tr("Background Color")); };
+            
+
+            return {};
+        }
+    };
+    
+
+    attribute<bool>  local{ this, "local", 0, range { 0, 1 }, readonly {1}};
+
+    attribute<color> textcolor{ this, "textcolor", {styleColor.red, styleColor.green, styleColor.blue, styleColor.alpha}, title {"Text Color"} };
+    
+    attribute<color> lockedinputcolor{ this, "inputColor", color::predefined::white, title {"Locked Input Color"}};
+    
+    attribute<color> boxcolor{ this, "boxcolor", {0.3, 0.3, 0.3, 1.0}, title {"Box Color"}};
+
+    attribute<color> errorcolor{ this, "errorcolor", {0.847059, 0., 0., 1.}, title {"Error Color"}};
+
+    attribute<int, threadsafe::no, limit::clamp> border{ this, "border", 0,  range { 0, 8 }, title {"Border Size"}};
+
+    attribute<int, threadsafe::no, limit::clamp> roundness{ this, "roundness", 15, range { 0 , 22 }, title {"Roundness of Box Corners"} };
+   
+
+
+
 
     
     message<> mousedown{ this, "mousedown",
@@ -455,8 +485,9 @@ public:
             auto    y { e.y() };
             cout << "Mousedown" << endl;
             //Detect username password box
+
             if (objectStateVar == objectState::disconnected) {
-               
+                
                 //USERNAME BOX Box ranges are determined programatically in the Paint Function based on the paint context
                 if (x >= usernameBox.x && x <= (usernameBox.x + *fontwidth) && y >= (usernameBox.y - *fontheight) && y <= (usernameBox.y)) {
                     activeTextBoxPtr = &usernameBox;
@@ -610,16 +641,8 @@ public:
     };
 
 
-    c74::max::t_jrgba styleColor;
 
-    message<> maxclass_setup{ this, "maxclass_setup",
-    MIN_FUNCTION {
-        c74::max::t_class * c = args[0];
-   
-        c74::max::class_attr_stylemap(c, "yourcolorname", "Active Toolbar Background");
-        return {};
-        }
-    };
+
 
     //PAINT FUNCTIONS
     #pragma region PaintFunctions
@@ -670,7 +693,7 @@ public:
             };
 
             text{			// username display
-                  t, color {textcolor},
+                  t, color { textcolor},
                   position {textBox.x, textBox.y},
                   fontface {m_fontname},
                   fontsize {m_fontsize},
@@ -702,7 +725,7 @@ public:
         }
 
         text{			// labelText
-                t, color {textcolor},
+                t, color { textcolor},
                 position {textBox.x - textBuffer - 5, textBox.y - m_fontsize - 10},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
@@ -725,7 +748,7 @@ public:
         };
 
         text{			// labelText
-                t, color {textcolor},
+                t, color { textcolor},
                 position { newUsernameBox.x - 3 + 19 , 250 + 12},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
@@ -743,7 +766,7 @@ public:
         };
 
         text{			// labelText
-                t, color {textcolor},
+                t, color { textcolor},
                 position { usernameBox.x - 3 + 19 , 247},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
@@ -757,14 +780,14 @@ public:
         if (objectStateVar == objectState::newAccount || objectStateVar == objectState::newAccountAttempt) {
             line<> {
                 t,
-                    color{ textcolor },
+                    color { textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 3, 250 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
                     destination{ usernameBox.x - 3 + 7, 250 + 15 - 3 }
             };
             line<> {
                 t,
-                    color{ textcolor },
+                    color { textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 7, 250 + 15 - 3 },
                     destination{ usernameBox.x - 3 + 15 - 3, 250 + 3 }
@@ -773,14 +796,14 @@ public:
         else {
             line<> {
                 t,
-                    color{ textcolor },
+                    color { textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 3, 235 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
                     destination{ usernameBox.x - 3 + 7, 235 + 15 - 3 }
             };
             line<> {
                 t,
-                    color{ textcolor },
+                    color { textcolor },
                     line_width{ 2.0 },
                     origin{ usernameBox.x - 3 + 7, 235 + 15 - 3 },
                     destination{ usernameBox.x - 3 + 15 - 3, 235 + 3 }
@@ -800,7 +823,7 @@ public:
         };
 
         text{			// labelText
-                t, color {textcolor},
+                t, color { textcolor},
                 position { 12 + 19 , objectHeight - 26 + 12},
                 fontface {m_fontname},
                 fontsize {m_fontsize},
@@ -814,14 +837,14 @@ public:
 
         line<> {
             t,
-                color{ textcolor },
+                color { textcolor },
                 line_width{ 2.0 },
                 origin{ 12 + 3, objectHeight - 26 + 7 },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
                 destination{ 12 + 7, objectHeight - 26 + 15 - 3 }
         };
         line<> {
             t,
-                color{ textcolor },
+                color { textcolor },
                 line_width{ 2.0 },
                 origin{ 12 + 7, objectHeight - 26 + 15 - 3 },
                 destination{ 12 + 15 - 3, objectHeight - 26 + 3 }
@@ -843,7 +866,7 @@ public:
 
             int connectCenter = centerText(t, "Connect", m_fontsize);
             text{			
-                     t, color {textcolor},
+                     t, color { textcolor},
                      position {connectCenter, 268 + 32},
                      fontface {m_fontname},
                      fontsize {m_fontsize},
@@ -921,7 +944,7 @@ public:
             else { c74::max::jgraphics_text_measure(t, activeTextBoxPtr->text.c_str(), fontwidth, fontheight); }
             line<> {
                 t,
-                    color{ textcolor },
+                    color { textcolor },
                     line_width{ 1.0 },
                     origin{ number((activeTextBoxPtr->x + *fontwidth + 1)), number(activeTextBoxPtr->y + 2) },   //additional +3 on originx and -3 destinationy to avoid the linewidth of the box
                     destination{ number(activeTextBoxPtr->x + *fontwidth + 1), number(activeTextBoxPtr->y + 2 - *fontheight) }
@@ -935,16 +958,16 @@ public:
     message<> paint{ this, "paint",
         MIN_FUNCTION {
             target t        { args };
-            
+    local = 1;
+        c74::max::t_jrgba paintstyle;
+        c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &paintstyle);
+        cout << "painstylecolor is " + std::to_string(paintstyle.red) + " " + std::to_string(paintstyle.green) + " " + std::to_string(paintstyle.blue) + " " + std::to_string(paintstyle.alpha) << endl;
 
-    c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("yourcolorname"), &styleColor);
-    cout << "styleColor is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
-
-
+        cout << "stylecolor in paint is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
 
         // ShowTitle
         text{
-            t, color { textcolor},
+            t, color { textColorStyle },
                  position {35, 85},
                  fontface {m_fontname},
                  fontsize {36},
@@ -967,7 +990,7 @@ public:
            
 
             
-
+    
             //Place the TextBoxes
             usernameBox.x = centerText(t, placeholderString, m_fontsize);
             usernameBox.y = (t.height() / 2) - (*fontheight * .25) - 5 - 10;   //raised in increments relative to the vercial center.  (the fontheight behaves stragely, this formula is mostly trial and error.)
