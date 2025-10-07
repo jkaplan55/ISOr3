@@ -29,12 +29,22 @@
 
 	<methodlist>
 
-		<method name='signout'>
+		<method name='key'>
 			<digest></digest>
 			<description></description>
 		</method>
 
-		<method name='key'>
+		<method name='post_attribute_setup'>
+			<digest></digest>
+			<description></description>
+		</method>
+
+		<method name='setcolor'>
+			<digest></digest>
+			<description></description>
+		</method>
+
+		<method name='signout'>
 			<digest></digest>
 			<description></description>
 		</method>
@@ -45,6 +55,11 @@
 	<!--ATTRIBUTES-->
 
 	<attributelist>
+
+		<attribute name='anumber' get='1' set='1' type='long' size='1' >
+			<digest></digest>
+			<description></description>
+		</attribute>
 
 		<attribute name='border' get='1' set='1' type='long' size='1' >
 			<digest></digest>

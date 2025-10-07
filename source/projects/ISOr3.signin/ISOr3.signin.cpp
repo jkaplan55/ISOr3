@@ -10,7 +10,6 @@
 
 #include "c74_min.h"
 #include "../custom_min_operator_ui.h"   //https://cycling74.com/forums/how-does-jboxtextfield-work
-
 #include <string>
 #include <thread>
 #include <fstream>
@@ -299,6 +298,13 @@ private:
                 if (rememberMeCheck) {
                     authenticateWithRefresh(authToken, refreshToken);
                 }
+               // c74::max::t_jrgba acolor;
+               // c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &acolor);
+                
+               // cout << "acolor in postContruction is " + std::to_string(acolor.red) + " " + std::to_string(acolor.green) + " " + std::to_string(acolor.blue) + " " + std::to_string(acolor.alpha) << endl;
+                //cout << "sytleColor in postContruction is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
+                //atoms newcolor = { styleColor.red, styleColor.green, styleColor.blue, styleColor.alpha };
+                //textcolor.set(newcolor);
             }
         }
 
@@ -377,30 +383,33 @@ public:
     
     color textColorStyle;
     c74::max::t_jrgba styleColor;
+
 #pragma region signInConstructor
+
     signin(const atoms& args = {})
         : custom_ui_operator::custom_ui_operator{ this, args } {
 
-      
-
         c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &styleColor);
-        cout << "styleColor in Constructor is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
-
+        //cout << "styleColor in Constructor is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
+        
+        
 
         //Store the session pointer in the t_symbol
         SessionSym->s_thing = (c74::max::t_object*)theSession;
-
+        
         //make a singleton        
         makeSingleton();        
-                
+       // cout << "local in construct is " + std::to_string(local) << endl;
         //Cannot access attributes in the constructor, so launch a thread that will run as soon as the constructor finishes to complete remaining initialization.
-
+        
         if (!dummy()) {
-            readDataFile();
+           // setstyleColor();
+           // readDataFile();          
 
-            postConstructionInit = std::thread(&signin::postConstructionInitialization, this);
-            postConstructionInit.detach();
-            constructionComplete = true;
+           // theSession->initializeClient(local);
+            //postConstructionInit = std::thread(&signin::postConstructionInitialization, this);
+            //postConstructionInit.detach();
+            //constructionComplete = true;
         }
     }
 #pragma endregion
@@ -421,29 +430,43 @@ public:
         c74::max::t_symbol* Exists = c74::max::gensym("AuthenticatorInstance");
         Exists->s_thing = NULL;
     }
-    /*
+
     message<> m_notify{ this, "notify",
         MIN_FUNCTION {
             notification n { args };
             symbol attr_name { n.attr_name() };
-
+            cout << "notified!  the number is " << anumber.get() << endl;            
             if (attr_name != k_sym__empty) {
                 redraw();
             }
             return {};
         }
     };
-    */
+
     c74::max::t_jrgba u_background;
 
     message<> maxclass_setup{ this, "maxclass_setup",
         MIN_FUNCTION {
             c74::max::t_class * c = args[0];
+            
+            //CLASS_ATTR_CHAR(c, "trackmouse", 0, t_uisimp, u_trackmouse);
+            //CLASS_ATTR_STYLE_LABEL(c, "trackmouse", 0, "onoff", "Track Mouse");
+            //CLASS_ATTR_SAVE(c, "trackmouse", 0);
+
+    {
+        using namespace c74::max;
+        CLASS_ATTR_DEFAULTNAME_SAVE_PAINT(c, "color", 0, "0. 0. 0. 1.");
+        CLASS_ATTR_STYLE_LABEL(c, "color", 0, "rgba", "Check Color");
+        CLASS_ATTR_DEFAULTNAME_SAVE_PAINT(c, "textcolor", 0, "0. 0. 0. 1.");
+        CLASS_ATTR_STYLE_LABEL(c, "textcolor", 0, "rgba", "Check Color");
+    }
             myTclass = c;
             c74::max::class_attr_stylemap(c, "textcolor", "bgcolor");
+
             //c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &styleColor);
            // cout << "styleColor in class setup is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
-           
+        
+            /*  Expanded Max SDK Maccors with namespaces added.
             {
                 class_addattr((c), c74::max::attr_offset_array_new("bgcolor", c74::max::gensym("float64"), (4), (0), (c74::max::method)0L, (c74::max::method)0L, 0, ((c74::max::t_ptr_int)(&(((signin*)0L)->u_background))))); {
                     c74::max::t_object* theattr = (c74::max::t_object*)class_attr_get(c, c74::max::gensym("bgcolor")); c74::max::object_method_imp((void*)(t_ptr_int)(theattr), (void*)(t_ptr_int)(c74::max::gensym("setmethod")), (void*)(t_ptr_int)(c74::max::gensym("get")), (void*)(t_ptr_int)(0), (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0); c74::max::object_method_imp((void*)(t_ptr_int)(theattr), (void*)(t_ptr_int)(c74::max::gensym("setmethod")), (void*)(t_ptr_int)(c74::max::gensym("set")), (void*)(t_ptr_int)(c74::max::jgraphics_attr_setrgba), (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0);
@@ -451,17 +474,20 @@ public:
             };
             { { c74::max::t_object* theattr = (c74::max::t_object*)c74::max::class_attr_get(c, c74::max::gensym("bgcolor")); class_attr_addattr_parse(c, "bgcolor", "defaultname", (c74::max::t_symbol*)c74::max::object_method_imp((void*)(t_ptr_int)(theattr), (void*)(t_ptr_int)(c74::max::gensym("gettype")), (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0, (void*)(t_ptr_int)0), 0, "1. 1. 1. 1."); }; class_attr_addattr_parse(c, "bgcolor", "save", c74::max::gensym("long"), 0, "1"); class_attr_addattr_parse(c, "bgcolor", "paint", c74::max::gensym("long"), 0, "1"); };
             { c74::max::class_attr_addattr_parse(c, "bgcolor", "style", c74::max::gensym("symbol"), 0, "rgba"); class_attr_addattr_format(c, "bgcolor", "label", c74::max::gensym("symbol"), 0, "s", c74::max::gensym_tr("Background Color")); };
-            
+            */
 
             return {};
         }
     };
-    
+
+
+
 
     attribute<bool>  local{ this, "local", 0, range { 0, 1 }, readonly {1}};
+        
+    //attribute<color> textcolor{ this, "textcolor", {styleColor.red, styleColor.green, styleColor.blue, styleColor.alpha}, title {"Text Color"} };
+    attribute<color> textcolor{ this, "textcolor",  color::predefined::black, title{"Text Color"}};
 
-    attribute<color> textcolor{ this, "textcolor", {styleColor.red, styleColor.green, styleColor.blue, styleColor.alpha}, title {"Text Color"} };
-    
     attribute<color> lockedinputcolor{ this, "inputColor", color::predefined::white, title {"Locked Input Color"}};
     
     attribute<color> boxcolor{ this, "boxcolor", {0.3, 0.3, 0.3, 1.0}, title {"Box Color"}};
@@ -469,14 +495,48 @@ public:
     attribute<color> errorcolor{ this, "errorcolor", {0.847059, 0., 0., 1.}, title {"Error Color"}};
 
     attribute<int, threadsafe::no, limit::clamp> border{ this, "border", 0,  range { 0, 8 }, title {"Border Size"}};
+    
 
     attribute<int, threadsafe::no, limit::clamp> roundness{ this, "roundness", 15, range { 0 , 22 }, title {"Roundness of Box Corners"} };
    
+    c74::max::t_jrgba setstyleColor() {
+        c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &styleColor);
+        cout << "textcolor = " << styleColor.red << " " << styleColor.green << " " << styleColor.blue << " " << styleColor.alpha << endl;
+   
+
+      //  auto as = to_atoms(styleColor);
+       // textcolor.set(as, false, true);
+
+        return styleColor;
+    }
+
+    color getstyleColor() {
+        color myColor;
+        
+        c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &styleColor);
+        myColor = styleColor;
+        cout << "getStyleColor = " << styleColor.red << " " << styleColor.green << " " << styleColor.blue << " " << styleColor.alpha << endl;
+        return styleColor;
+    }
+  
+    attribute<int> anumber{ this, "anumber", 0,  title {"anumber"} };
+
+    message<> post_attribute_setup{ this, "post_attribute_setup",
+    MIN_FUNCTION {
+        cout << "hello from the setup message" << endl;
+        textcolor = atoms{ styleColor.red, styleColor.green, styleColor.blue, styleColor.alpha };
+        anumber = 12;
+        return {};
+    }
+    };
 
 
-
-
-    
+    message<> setcolor{ this, "setcolor",
+        MIN_FUNCTION {
+            textcolor.set(atoms{.5, .7, .3, 1});
+             return {};
+        }
+    };
     message<> mousedown{ this, "mousedown",
         MIN_FUNCTION {
             event   e { args };
@@ -485,7 +545,7 @@ public:
             auto    y { e.y() };
             cout << "Mousedown" << endl;
             //Detect username password box
-
+            textcolor = atoms{ .35, .6, .9, 1 };
             if (objectStateVar == objectState::disconnected) {
                 
                 //USERNAME BOX Box ranges are determined programatically in the Paint Function based on the paint context
@@ -510,6 +570,7 @@ public:
                
 
             }
+            
             //Detect newUsername, newEmail, newPasswordBox
             else if (objectStateVar == objectState::newAccount) { 
                 
@@ -959,15 +1020,16 @@ public:
         MIN_FUNCTION {
             target t        { args };
     local = 1;
-        c74::max::t_jrgba paintstyle;
-        c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &paintstyle);
-        cout << "painstylecolor is " + std::to_string(paintstyle.red) + " " + std::to_string(paintstyle.green) + " " + std::to_string(paintstyle.blue) + " " + std::to_string(paintstyle.alpha) << endl;
+       // c74::max::t_jrgba paintstyle;
+        //c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("textcolor"), &paintstyle);
+        //cout << "painstylecolor is " + std::to_string(paintstyle.red) + " " + std::to_string(paintstyle.green) + " " + std::to_string(paintstyle.blue) + " " + std::to_string(paintstyle.alpha) << endl;
 
-        cout << "stylecolor in paint is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
-
+        //cout << "stylecolor in paint is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
+        //atoms newcolor = { styleColor.red, styleColor.green, styleColor.blue, styleColor.alpha };
+        //textcolor.set(newcolor);
         // ShowTitle
         text{
-            t, color { textColorStyle },
+            t, color { textcolor },
                  position {35, 85},
                  fontface {m_fontname},
                  fontsize {36},
