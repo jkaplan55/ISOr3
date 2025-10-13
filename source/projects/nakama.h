@@ -176,7 +176,7 @@ public:
             };
 
         NStringMap vars = {
-        { "clientVersion", "1.1" }
+        { "clientVersion", "1.0" }
         };
 
         _client->authenticateEmail(email, password, userName, create, vars, successCallback, errorCallback);
@@ -223,7 +223,7 @@ public:
     }
 
     void signOut() {
-        _client->disconnect();          
+        _client->disconnect();         
     } //TODO
     #pragma endregion
 

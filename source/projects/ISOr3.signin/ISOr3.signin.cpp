@@ -610,17 +610,7 @@ public:
     };
 
 
-    c74::max::t_jrgba styleColor;
-
-    message<> maxclass_setup{ this, "maxclass_setup",
-    MIN_FUNCTION {
-        c74::max::t_class * c = args[0];
-   
-        c74::max::class_attr_stylemap(c, "yourcolorname", "Active Toolbar Background");
-        return {};
-        }
-    };
-
+  
     //PAINT FUNCTIONS
     #pragma region PaintFunctions
 
@@ -937,10 +927,7 @@ public:
             target t        { args };
             
 
-    c74::max::object_attr_getjrgba(maxobj(), c74::max::gensym("yourcolorname"), &styleColor);
-    cout << "styleColor is " + std::to_string(styleColor.red) + " " + std::to_string(styleColor.green) + " " + std::to_string(styleColor.blue) + " " + std::to_string(styleColor.alpha) << endl;
-
-
+ 
 
         // ShowTitle
         text{
