@@ -194,9 +194,11 @@ public:
             auto session = restoreSession(authToken, refreshToken);
             _session = session;
             
-            auto refreshSuccessCallback = [onSuccess](NSessionPtr session)
+            
+            auto refreshSuccessCallback = [onSuccess, this](NSessionPtr session)
                 {
                     onSuccess(session->getAuthToken(), session->getRefreshToken());
+                    startRtClient();
                 };
 
             auto refreshErrorCallback = [onError](const NError& error)
@@ -223,6 +225,7 @@ public:
     }
 
     void signOut() {
+        _rtClient->updateStatus("");
         _client->disconnect();         
     } //TODO
     #pragma endregion
