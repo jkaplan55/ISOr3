@@ -13,7 +13,8 @@
 
 #include <string>
 #include <thread>
-#include <fstream>
+#include <fstream>  //to read and write data file
+#include <cstdio>  //to remove file
 
 
 #include "json.hpp"
@@ -160,11 +161,12 @@ private:
         connecting,
         connected,
         newAccount,
-        newAccountAttempt
+        newAccountAttempt,
+        initialization
     };
 
     objectState objectStateVar = objectState::disconnected;
-    objectState stateOnPreviousPaint = objectStateVar;
+    objectState stateOnPreviousPaint = objectState::initialization;
     #pragma endregion
      
     //DECLARATIONS FOR DATA PERSISTENCE
@@ -273,6 +275,10 @@ private:
     }
     #pragma endregion
    
+    void removeFile() {
+        std::string dataFilePath = getDataFilePath();
+        std::remove(dataFilePath.c_str());
+    }
     //DECLARATIONS FOR OBJECT INITIALIZATION    
     #pragma region Initialization
     void makeSingleton() {
@@ -293,8 +299,9 @@ private:
                 waiting = false;
                 theSession->initializeClient(local);
                 if (rememberMeCheck) {
-                    authenticateWithRefresh(authToken, refreshToken);
+                    authenticateWithRefresh(authToken, refreshToken);               
                 }
+                //else output.send("disconnected");  //send initial state
             }
         }
 
@@ -427,7 +434,7 @@ public:
             blinkCursor.join();
         }                
         
-        //if (rememberMeCheck) { writeFile(); }
+        if (!rememberMeCheck) { removeFile(); }
 
         //Clear Exists->s_thing when deleting the object or closing the patch.
         c74::max::t_symbol* Exists = c74::max::gensym("AuthenticatorInstance");
