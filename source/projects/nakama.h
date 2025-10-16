@@ -190,15 +190,15 @@ public:
         //if there is a Session token in storage, try to use it.
         if (!authToken.empty())
         {
-            // Lets check if we can restore a cached session.
+            //Restore the previous session.
             auto session = restoreSession(authToken, refreshToken);
-            _session = session;
-            
+                       
             
             auto refreshSuccessCallback = [onSuccess, this](NSessionPtr session)
                 {
-                    onSuccess(session->getAuthToken(), session->getRefreshToken());
+                    _session = session;  //save the new session after refresh
                     startRtClient();
+                    onSuccess(session->getAuthToken(), session->getRefreshToken());
                 };
 
             auto refreshErrorCallback = [onError](const NError& error)
@@ -225,7 +225,7 @@ public:
     }
 
     void signOut() {
-        _rtClient->updateStatus("");
+        _rtClient->disconnect();
         _client->disconnect();         
     } //TODO
     #pragma endregion

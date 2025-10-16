@@ -275,7 +275,7 @@ private:
     }
     #pragma endregion
    
-    void removeFile() {
+    void removeDataFile() {
         std::string dataFilePath = getDataFilePath();
         std::remove(dataFilePath.c_str());
     }
@@ -284,7 +284,7 @@ private:
     void makeSingleton() {
         c74::max::t_symbol* Exists = c74::max::gensym("AuthenticatorInstance");
         if (Exists->s_thing) {
-            error("Authentication object already exists.");
+            error("Signing object already exists.");
             return;
         }
         Exists->s_thing = maxobj();
@@ -301,7 +301,6 @@ private:
                 if (rememberMeCheck) {
                     authenticateWithRefresh(authToken, refreshToken);               
                 }
-                //else output.send("disconnected");  //send initial state
             }
         }
 
@@ -325,7 +324,6 @@ private:
         auto onError = [this](std::string error) {
             if (objectStateVar == objectState::newAccountAttempt && error == "Invalid credentials.") { error = "Email already in use."; }
             errorMessage = error;
-            cout << error << endl;
             cout << errorMessage << endl;
             if (objectStateVar == objectState::newAccountAttempt) { objectStateVar = objectState::newAccount; }
             else if (objectStateVar == objectState::connecting) { objectStateVar = objectState::disconnected; }
@@ -374,15 +372,11 @@ public:
     MIN_RELATED{ "comment, umenu, textbutton" };
 
     inlet<>  input{ this, "(list) signout" };
-    outlet<> output{ this, "(anything) bang on successful auth" };
-
+    outlet<> state{ this, "(anything) object state" };
+    outlet<> errorNotification{ this, "(anything) error message" };
     
 
-    attribute<bool>  local{ this, "local", 0, range { 0, 1 }, readonly {1},         setter{ MIN_FUNCTION {
-
-                cout << "local attribute setter" << endl;
-                return args;
-            } } };
+    attribute<bool>  local{ this, "local", 0, range { 0, 1 } };
 
     attribute<color> textcolor{ this, "textcolor", color::predefined::black, title {"Text Color"}
     };
@@ -434,7 +428,7 @@ public:
             blinkCursor.join();
         }                
         
-        if (!rememberMeCheck) { removeFile(); }
+        if (!rememberMeCheck) { removeDataFile(); }
 
         //Clear Exists->s_thing when deleting the object or closing the patch.
         c74::max::t_symbol* Exists = c74::max::gensym("AuthenticatorInstance");
@@ -531,9 +525,9 @@ public:
             //NEW ACCOUNT BOX
             if (x >= (8) && x <= (8 + 15) && y >= t.height() - 22 && y <= (t.height() - 22 + 15) && (objectStateVar == objectState::newAccount || objectStateVar == objectState::disconnected)) {
                 newAccountCheck = !newAccountCheck;
-                if (newAccountCheck) { objectStateVar = objectState::newAccount; }
+                if (newAccountCheck) { objectStateVar = objectState::newAccount; errorMessage = ""; } //clear error message which switching State
                 else { objectStateVar = objectState::disconnected; }
-
+                
                 activeTextBoxPtr = NULL;
                 stopCursorThread();
                 redraw();
@@ -606,7 +600,9 @@ public:
 
             if (objectStateVar == objectState::connected) { 
                 theSession->signOut();
-                
+                usernameBox.text = "";
+                passwordBox.text = "";
+                removeDataFile();
                 objectStateVar = objectState::disconnected;
                 redraw();
             }
@@ -633,7 +629,7 @@ public:
                 case objectState::newAccountAttempt : stateString = "newAccountAttempt";  break;
             }
             
-            output.send(stateString);
+            state.send(stateString);
             stateOnPreviousPaint = objectStateVar;
 
         }
@@ -996,7 +992,7 @@ public:
 
             paintConnectButton(t, 24);
 
-            if (errorMessage != "") { paintErrorMessage(t, 16); }
+            if (errorMessage != "") { paintErrorMessage(t, 16); errorNotification.send(errorMessage); }
 
             paintNewAccountBox(t, m_fontsize);
             if (newAccountCheck) { paintNewAccountBoxCheck(t); };
