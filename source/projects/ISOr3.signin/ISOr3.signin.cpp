@@ -404,11 +404,11 @@ public:
         makeSingleton();       
         
         
+        //we have to read the file even if we're in the dummy instance.  Because Dummy Check doesn't work in the destructor and we want to remove the file in the destructor if rememberMe is not checked.
+        readDataFile();
+
         //Cannot access attributes in the constructor, so launch a thread that will run as soon as the constructor finishes to complete remaining initialization.
-
         if (!dummy()) {
-            readDataFile();
-
             postConstructionInit = std::thread(&signin::postConstructionInitialization, this);
             postConstructionInit.detach();
             constructionComplete = true;
@@ -426,8 +426,8 @@ public:
                 cv.notify_one();  //manage the mutex and stop the wait before joining the thread, https://stackoverflow.com/questions/55783451/using-c-how-can-i-stop-a-sleep-thread
             }
             blinkCursor.join();
-        }                
-        
+        }     
+
         if (!rememberMeCheck) { removeDataFile(); }
 
         //Clear Exists->s_thing when deleting the object or closing the patch.
