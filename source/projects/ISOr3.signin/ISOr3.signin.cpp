@@ -523,7 +523,7 @@ public:
                 }
 
             //NEW ACCOUNT BOX
-            if (x >= (8) && x <= (8 + 15) && y >= t.height() - 22 && y <= (t.height() - 22 + 15) && (objectStateVar == objectState::newAccount || objectStateVar == objectState::disconnected)) {
+            if (x >= (12) && x <= (12 + 15) && y >= t.height() - 26 && y <= (t.height() - 26 + 15) && (objectStateVar == objectState::newAccount || objectStateVar == objectState::disconnected)) {
                 newAccountCheck = !newAccountCheck;
                 if (newAccountCheck) { objectStateVar = objectState::newAccount; errorMessage = ""; } //clear error message which switching State
                 else { objectStateVar = objectState::disconnected; }
