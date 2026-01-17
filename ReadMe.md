@@ -96,7 +96,8 @@ If creating a new repo from scratch remember the following:
 * Rebuild the externals in Release Configuration
 * Build the package in the max package editor
 * Add any additional resources.  Fonts go in the resources/fonts folder
-* Add release .dlls to the resources/support folder
+* WINDOWS: Add release .dlls to the resources/support folder
+* MAC: Add nakama-sdk.framework to Context/MacOS folder
 
 
 ## Contributors / Acknowledgements
