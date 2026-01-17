@@ -225,7 +225,7 @@ public:
     }
 
     void signOut() {
-        _rtClient->disconnect();
+        _rtClient->updateStatus("");
         _client->disconnect();         
     } //TODO
     #pragma endregion
